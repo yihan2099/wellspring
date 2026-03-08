@@ -1,0 +1,47 @@
+name: worldbank
+category: government
+description: "World Bank — economic indicators, population, GDP, development data"
+auth: none
+base_url: https://api.worldbank.org/v2
+
+endpoints:
+  countries:
+    path: /country
+    method: GET
+    params:
+      format: json
+      per_page: "50"
+  indicators:
+    path: /country/{country}/indicator/{indicator}
+    method: GET
+    params:
+      format: json
+      per_page: "10"
+      date: "2015:2024"
+  population:
+    path: /country/{country}/indicator/SP.POP.TOTL
+    method: GET
+    params:
+      format: json
+      per_page: "10"
+      date: "2015:2024"
+  gdp:
+    path: /country/{country}/indicator/NY.GDP.MKTP.CD
+    method: GET
+    params:
+      format: json
+      per_page: "10"
+      date: "2015:2024"
+
+mapping:
+  title: .country.value
+  value: .value
+  time: .date
+  meta:
+    indicator: .indicator.value
+    country_id: .countryiso3code
+    unit: .unit
+
+rate_limit:
+  requests: 30
+  per: 1m

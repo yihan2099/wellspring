@@ -1,0 +1,37 @@
+name: hackernews
+category: news
+description: "Hacker News — top stories, new stories, best stories"
+auth: none
+base_url: https://hacker-news.firebaseio.com/v0
+
+endpoints:
+  top:
+    path: /topstories.json
+    method: GET
+    pagination: none
+  new:
+    path: /newstories.json
+    method: GET
+    pagination: none
+  best:
+    path: /beststories.json
+    method: GET
+    pagination: none
+  item:
+    path: /item/{id}.json
+    method: GET
+
+mapping:
+  title: .title
+  url: .url
+  time: .time | unix
+  value: .score
+  item_endpoint: item
+  meta:
+    author: .by
+    comments: .descendants
+    type: .type
+
+rate_limit:
+  requests: 30
+  per: 1m

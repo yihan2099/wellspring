@@ -1,0 +1,44 @@
+name: coingecko
+category: crypto
+description: "CoinGecko — cryptocurrency prices, market data, trending coins"
+auth: none
+base_url: https://api.coingecko.com/api/v3
+
+endpoints:
+  prices:
+    path: /coins/markets
+    method: GET
+    params:
+      vs_currency: "usd"
+      order: "market_cap_desc"
+      per_page: "10"
+      page: "1"
+      sparkline: "false"
+  trending:
+    path: /search/trending
+    method: GET
+  coin:
+    path: /coins/{id}
+    method: GET
+    params:
+      localization: "false"
+      tickers: "false"
+      community_data: "false"
+      developer_data: "false"
+
+mapping:
+  title: .name
+  url: .id
+  value: .current_price
+  meta:
+    symbol: .symbol
+    market_cap: .market_cap
+    market_cap_rank: .market_cap_rank
+    price_change_24h: .price_change_percentage_24h
+    total_volume: .total_volume
+    high_24h: .high_24h
+    low_24h: .low_24h
+
+rate_limit:
+  requests: 10
+  per: 1m
