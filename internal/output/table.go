@@ -10,6 +10,11 @@ import (
 	"github.com/wellspring-cli/wellspring/internal/adapter"
 )
 
+const (
+	maxTitleWidth = 60
+	maxURLWidth   = 50
+)
+
 var (
 	headerStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	cellStyle   = lipgloss.NewStyle()
@@ -70,7 +75,7 @@ func RenderTable(w io.Writer, points []adapter.DataPoint, noColor bool) {
 		ci := 1
 
 		if hasTitle {
-			title := truncate(p.Title, 60)
+			title := truncate(p.Title, maxTitleWidth)
 			row = append(row, title)
 			if len(title) > widths[ci] {
 				widths[ci] = len(title)
@@ -93,7 +98,7 @@ func RenderTable(w io.Writer, points []adapter.DataPoint, noColor bool) {
 		ci++
 
 		if hasURL {
-			url := truncate(p.URL, 50)
+			url := truncate(p.URL, maxURLWidth)
 			row = append(row, url)
 			if len(url) > widths[ci] {
 				widths[ci] = len(url)

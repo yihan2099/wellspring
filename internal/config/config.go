@@ -7,6 +7,9 @@ import (
 )
 
 // Config holds all configuration for Wellspring.
+// Note: API keys in the config file (~/.config/wellspring/config.toml) are stored
+// in plaintext. For sensitive keys, prefer environment variables (WSP_<NAME>_KEY)
+// which avoid persisting credentials to disk.
 type Config struct {
 	General  GeneralConfig            `mapstructure:"general"`
 	Keys     map[string]string        `mapstructure:"keys"`

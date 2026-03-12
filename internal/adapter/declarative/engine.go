@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -191,12 +192,12 @@ func (a *DeclarativeAdapter) Fetch(ctx context.Context, params map[string]string
 	for k, v := range params {
 		path = strings.ReplaceAll(path, "{"+k+"}", v)
 	}
-	url := a.def.BaseURL + path
+	apiURL := a.def.BaseURL + path
 
-	// Add query parameters.
+	// Add query parameters (URL-encoded to prevent injection).
 	if len(ep.Params) > 0 {
 		sep := "?"
-		if strings.Contains(url, "?") {
+		if strings.Contains(apiURL, "?") {
 			sep = "&"
 		}
 		for k, v := range ep.Params {
@@ -204,7 +205,7 @@ func (a *DeclarativeAdapter) Fetch(ctx context.Context, params map[string]string
 			if userVal, ok := params[k]; ok {
 				v = userVal
 			}
-			url += sep + k + "=" + v
+			apiURL += sep + url.QueryEscape(k) + "=" + url.QueryEscape(v)
 			sep = "&"
 		}
 	}
@@ -214,7 +215,7 @@ func (a *DeclarativeAdapter) Fetch(ctx context.Context, params map[string]string
 		method = "GET"
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
@@ -234,7 +235,7 @@ func (a *DeclarativeAdapter) Fetch(ctx context.Context, params map[string]string
 
 	resp, err := a.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetching %s: %w", url, err)
+		return nil, fmt.Errorf("fetching %s: %w", apiURL, err)
 	}
 	defer resp.Body.Close()
 

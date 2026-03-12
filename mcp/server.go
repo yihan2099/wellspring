@@ -18,6 +18,8 @@ type Server struct {
 }
 
 // NewServer creates a new MCP server that exposes all registered adapters as tools.
+// TODO: Consider adding access control (e.g., allow/deny list for tools,
+// rate limiting per client) for production MCP deployments.
 func NewServer(reg *registry.Registry, version string) *Server {
 	s := server.NewMCPServer(
 		"wellspring",

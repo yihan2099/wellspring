@@ -33,7 +33,9 @@ func RenderJSON(w io.Writer, points []adapter.DataPoint) {
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	enc.Encode(out)
+	if err := enc.Encode(out); err != nil {
+		fmt.Fprintf(w, `{"ok": false, "error": %q}`, err.Error())
+	}
 }
 
 // RenderJSONError renders an error as structured JSON.
@@ -47,7 +49,9 @@ func RenderJSONError(w io.Writer, source string, err error) {
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	enc.Encode(out)
+	if encErr := enc.Encode(out); encErr != nil {
+		fmt.Fprintf(w, `{"ok": false, "error": %q}`, err.Error())
+	}
 }
 
 // RenderJSONRaw renders any value as JSON (for generic output).

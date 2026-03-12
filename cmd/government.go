@@ -265,16 +265,23 @@ type worldBankEntry struct {
 	Decimal     int      `json:"decimal"`
 }
 
+const (
+	trillion = 1e12
+	billion  = 1e9
+	million  = 1e6
+	thousand = 1e3
+)
+
 func formatLargeNumber(n float64) string {
 	switch {
-	case n >= 1e12:
-		return fmt.Sprintf("%.2fT", n/1e12)
-	case n >= 1e9:
-		return fmt.Sprintf("%.2fB", n/1e9)
-	case n >= 1e6:
-		return fmt.Sprintf("%.2fM", n/1e6)
-	case n >= 1e3:
-		return fmt.Sprintf("%.2fK", n/1e3)
+	case n >= trillion:
+		return fmt.Sprintf("%.2fT", n/trillion)
+	case n >= billion:
+		return fmt.Sprintf("%.2fB", n/billion)
+	case n >= million:
+		return fmt.Sprintf("%.2fM", n/million)
+	case n >= thousand:
+		return fmt.Sprintf("%.2fK", n/thousand)
 	default:
 		return strconv.FormatFloat(n, 'f', 2, 64)
 	}

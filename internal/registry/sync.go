@@ -14,10 +14,14 @@ import (
 )
 
 const (
+	// registryBaseURL is the base URL for the remote source registry.
 	registryBaseURL = "https://raw.githubusercontent.com/wellspring-cli/registry/main"
-	catalogURL      = registryBaseURL + "/catalog.json"
-	syncInterval    = 24 * time.Hour
-	refreshAfter    = 12 * time.Hour
+	// catalogURL is the full URL to the catalog JSON file.
+	catalogURL = registryBaseURL + "/catalog.json"
+	// syncInterval is how long before a forced sync is required.
+	syncInterval = 24 * time.Hour
+	// refreshAfter is how long before a background refresh is triggered.
+	refreshAfter = 12 * time.Hour
 )
 
 // SyncStatus tracks the state of registry synchronization.
@@ -173,6 +177,11 @@ func BackgroundSync(reg *Registry, debug bool) {
 func ForceSync(reg *Registry, debug bool) error {
 	// Clear ETag to force a full download.
 	cacheDir := config.DefaultCacheDir()
-	os.Remove(filepath.Join(cacheDir, "registry.etag"))
+	etagPath := filepath.Join(cacheDir, "registry.etag")
+	if err := os.Remove(etagPath); err != nil && !os.IsNotExist(err) {
+		if debug {
+			fmt.Fprintf(os.Stderr, "[debug] failed to remove etag file: %v\n", err)
+		}
+	}
 	return SyncCatalog(reg, debug)
 }

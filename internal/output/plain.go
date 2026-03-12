@@ -21,7 +21,7 @@ func RenderPlain(w io.Writer, points []adapter.DataPoint) {
 			fields = append(fields, p.Title)
 		}
 		if p.Value != nil {
-			fields = append(fields, fmt.Sprintf("%v", p.Value))
+			fields = append(fields, formatValue(p.Value))
 		}
 		if !p.Time.IsZero() {
 			fields = append(fields, p.Time.Format("2006-01-02T15:04:05Z"))
@@ -31,5 +31,24 @@ func RenderPlain(w io.Writer, points []adapter.DataPoint) {
 		}
 
 		fmt.Fprintln(w, strings.Join(fields, "\t"))
+	}
+}
+
+// formatValue formats a value for plain text output, using fixed precision for floats.
+func formatValue(v any) string {
+	switch val := v.(type) {
+	case float64:
+		// Use up to 2 decimal places, trim trailing zeros.
+		s := fmt.Sprintf("%.2f", val)
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+		return s
+	case float32:
+		s := fmt.Sprintf("%.2f", val)
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+		return s
+	default:
+		return fmt.Sprintf("%v", v)
 	}
 }
