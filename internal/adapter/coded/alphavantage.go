@@ -288,7 +288,8 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, url string) ([]byte
 
 	resp, err := a.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
+		// Mask API key in error messages to avoid leaking credentials.
+		return nil, fmt.Errorf("API request failed: %w", maskAPIKey(err))
 	}
 	defer resp.Body.Close()
 
@@ -298,6 +299,21 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, url string) ([]byte
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+// maskAPIKey replaces API key values in error messages to prevent credential leakage.
+func maskAPIKey(err error) error {
+	msg := err.Error()
+	// Mask apikey query parameter values in URLs.
+	if idx := strings.Index(msg, "apikey="); idx >= 0 {
+		end := strings.IndexAny(msg[idx+7:], "&\" ")
+		if end == -1 {
+			msg = msg[:idx+7] + "***"
+		} else {
+			msg = msg[:idx+7] + "***" + msg[idx+7+end:]
+		}
+	}
+	return fmt.Errorf("%s", msg)
 }
 
 // Helper to get a float from a map with a string value.

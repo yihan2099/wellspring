@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -115,7 +114,7 @@ func runGovIndicator(indicator, label string) func(cmd *cobra.Command, args []st
 			fmt.Fprintf(os.Stderr, "[debug] fetching from World Bank: %s\n", url)
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := &http.Client{Timeout: 30 * time.Second}
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
@@ -182,7 +181,7 @@ func runGovIndicator(indicator, label string) func(cmd *cobra.Command, args []st
 func runGovCountries(cmd *cobra.Command, args []string) error {
 	url := fmt.Sprintf("https://api.worldbank.org/v2/country?format=json&per_page=%d", flagLimit)
 
-	ctx := context.Background()
+	ctx := cmd.Context()
 	client := &http.Client{Timeout: 30 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

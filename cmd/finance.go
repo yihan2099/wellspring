@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -110,7 +109,7 @@ func runFinanceAction(action string) func(cmd *cobra.Command, args []string) err
 			fmt.Fprintf(os.Stderr, "[debug] fetching from alphavantage (action=%s, symbol=%s)\n", action, financeSymbol)
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		points, err := a.Fetch(ctx, params)
 		if err != nil {
 			return err

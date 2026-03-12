@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -90,7 +91,8 @@ func SyncCatalog(reg *Registry, debug bool) error {
 	status := LoadSyncStatus()
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", catalogURL, nil)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, "GET", catalogURL, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}

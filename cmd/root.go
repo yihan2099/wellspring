@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -98,10 +99,12 @@ func init() {
 	rootCmd.AddCommand(serveCmd)
 }
 
+var initOnce sync.Once
+
 // Execute runs the root command.
 func Execute() error {
-	// Initialize global state.
-	initGlobals()
+	// Initialize global state (safe for concurrent calls).
+	initOnce.Do(initGlobals)
 
 	err := rootCmd.Execute()
 	if err != nil {

@@ -74,14 +74,18 @@ func ConfigFilePath() string {
 	return filepath.Join(ConfigDir(), "config.toml")
 }
 
-// GetAPIKey returns an API key, checking env vars first, then config.
+// GetAPIKey returns an API key using the following precedence (highest to lowest):
+//  1. WSP_<NAME>_KEY environment variable (e.g., WSP_ALPHA_VANTAGE_KEY)
+//  2. Config file keys section (~/.config/wellspring/config.toml [keys])
+//
+// Returns "" if no key is found at any level.
 func (c *Config) GetAPIKey(name string) string {
-	// Check environment variable first (e.g., WSP_ALPHA_VANTAGE_KEY)
+	// 1. Check environment variable first (highest priority).
 	envKey := os.Getenv("WSP_" + name + "_KEY")
 	if envKey != "" {
 		return envKey
 	}
-	// Fall back to config file
+	// 2. Fall back to config file.
 	if c.Keys != nil {
 		return c.Keys[name]
 	}

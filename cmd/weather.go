@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -128,7 +127,7 @@ func runWeatherAction(action string) func(cmd *cobra.Command, args []string) err
 			fmt.Fprintf(os.Stderr, "[debug] fetching weather from %s\n", url)
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		client := &http.Client{Timeout: 30 * time.Second}
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -92,7 +91,6 @@ func runNewsAction(action string) func(cmd *cobra.Command, args []string) error 
 
 		// Check rate limit.
 		if ok, wait := limiter.Allow(a.Name(), a.RateLimit()); !ok {
-			os.Exit(3)
 			return fmt.Errorf("%s", ratelimit.FormatRateLimitError(a.Name(), wait))
 		}
 
@@ -109,10 +107,9 @@ func runNewsAction(action string) func(cmd *cobra.Command, args []string) error 
 			fmt.Fprintf(os.Stderr, "[debug] fetching from %s (action=%s)\n", a.Name(), action)
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		points, err := a.Fetch(ctx, params)
 		if err != nil {
-			os.Exit(exitCode(err))
 			return err
 		}
 
