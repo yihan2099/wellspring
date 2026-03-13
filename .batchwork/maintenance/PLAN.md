@@ -30,7 +30,7 @@ Audit date: 2026-03-12
 - [x] #012 [Performance] Use `url.PathEscape()` for subreddit name in URL construction (`reddit.go:90`)
 - [x] #013 [Reliability] Validate parsed limit: clamp to `[1, maxLimit]` range; log warning on invalid input instead of silently defaulting (`alphavantage.go:146-157`)
 - [ ] #020 [API Contracts] Make CoinGecko `per_page` and `page` overridable via user params in declarative engine, or document the limit (`coingecko.yaml`, declarative engine)
-- [ ] #021 [API Contracts] Replace hardcoded `date: "2015:2024"` with dynamic range (e.g., `{current_year-10}:{current_year}`) or make user-overridable (`worldbank.yaml`)
+- [x] #021 [API Contracts] Replace hardcoded `date: "2015:2024"` with dynamic range (e.g., `{current_year-10}:{current_year}`) or make user-overridable (`worldbank.yaml`)
 - [ ] #022 [Reliability] Add `max_resolve` or `limit` parameter to HackerNews list endpoints to cap ID resolution count (`hackernews.yaml`, declarative engine)
 - [ ] #023 [Code Quality] Add defensive parsing for `ParsePublicAPIsREADME`: handle escaped pipes, log malformed lines, add unit tests with edge cases (`registry.go:285`)
 - [ ] #024 [Error Handling] Return MCP-level error (second return value) in addition to tool-result error for marshaling failures, so clients can distinguish transport vs. data errors (`mcp/server.go:130`)
