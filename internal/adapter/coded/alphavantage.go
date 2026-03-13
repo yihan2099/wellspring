@@ -115,9 +115,33 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("unexpected response format from Alpha Vantage")
 	}
 
+	// Track missing fields — a zero price is indistinguishable from a missing
+	// field without this check. Consumers can inspect _missing_fields in Meta.
+	var missing []string
+	expectedKeys := []string{"05. price", "01. symbol", "02. open", "03. high", "04. low", "09. change", "10. change percent"}
+	for _, k := range expectedKeys {
+		if _, ok := quote[k]; !ok {
+			missing = append(missing, k)
+		}
+	}
+
 	price := getFloat(quote, "05. price")
 	change := getFloat(quote, "09. change")
 	changePct := getString(quote, "10. change percent")
+
+	meta := map[string]any{
+		"symbol":     getString(quote, "01. symbol"),
+		"open":       getFloat(quote, "02. open"),
+		"high":       getFloat(quote, "03. high"),
+		"low":        getFloat(quote, "04. low"),
+		"volume":     getString(quote, "06. volume"),
+		"change":     change,
+		"change_pct": changePct,
+		"prev_close": getFloat(quote, "08. previous close"),
+	}
+	if len(missing) > 0 {
+		meta["_missing_fields"] = missing
+	}
 
 	dp := adapter.DataPoint{
 		Source:   "alphavantage",
@@ -126,16 +150,7 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 		Value:   price,
 		Time:    time.Now(),
 		URL:     fmt.Sprintf("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=%s", symbol),
-		Meta: map[string]any{
-			"symbol":     getString(quote, "01. symbol"),
-			"open":       getFloat(quote, "02. open"),
-			"high":       getFloat(quote, "03. high"),
-			"low":        getFloat(quote, "04. low"),
-			"volume":     getString(quote, "06. volume"),
-			"change":     change,
-			"change_pct": changePct,
-			"prev_close": getFloat(quote, "08. previous close"),
-		},
+		Meta:    meta,
 	}
 
 	return []adapter.DataPoint{dp}, nil
