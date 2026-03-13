@@ -44,4 +44,4 @@ Audit date: 2026-03-12
 - [x] #027 [Code Quality] Add validation to `RateLimitConfig`: require `Requests > 0` and `Per > 0`; validate on adapter registration (`adapter.go`)
 - [x] #028 [API Contracts] Add YAML comment documenting NYC default coordinates; consider requiring explicit lat/lon with helpful error message (`openmeteo.yaml`)
 - [x] #029 [Code Quality] Move generic tool construction inside the `default` case of the switch, so it is only built for unknown sources (`mcp/server.go:47`) — addressed by #017
-- [ ] #030 [Error Handling] Handle `os.UserHomeDir()` error: return error from `ConfigDir()`/`DefaultCacheDir()` or fall back to `/tmp/wellspring` with a warning (`config.go:54,67`)
+- [x] #030 [Error Handling] Handle `os.UserHomeDir()` error: return error from `ConfigDir()`/`DefaultCacheDir()` or fall back to `/tmp/wellspring` with a warning (`config.go:54,67`)
