@@ -143,6 +143,41 @@ func (a *DeclarativeAdapter) Endpoints() []string {
 	return endpoints
 }
 
+// EndpointParams returns the parameter names declared for a given endpoint.
+// This allows MCP tool registration to expose source-specific parameters
+// without hardcoding them in a switch statement.
+func (a *DeclarativeAdapter) EndpointParams(endpoint string) map[string]string {
+	if ep, ok := a.def.Endpoints[endpoint]; ok {
+		return ep.Params
+	}
+	return nil
+}
+
+// EndpointPathParams returns parameter names extracted from path templates
+// (e.g., /country/{country}/indicator/{indicator} yields ["country", "indicator"]).
+func (a *DeclarativeAdapter) EndpointPathParams(endpoint string) []string {
+	ep, ok := a.def.Endpoints[endpoint]
+	if !ok {
+		return nil
+	}
+	var params []string
+	path := ep.Path
+	for {
+		start := strings.Index(path, "{")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(path[start:], "}")
+		if end == -1 {
+			break
+		}
+		param := path[start+1 : start+end]
+		params = append(params, param)
+		path = path[start+end+1:]
+	}
+	return params
+}
+
 func (a *DeclarativeAdapter) RateLimit() adapter.RateLimitConfig {
 	dur := time.Minute // default
 	if a.def.RateLimitDef.Per != "" {
