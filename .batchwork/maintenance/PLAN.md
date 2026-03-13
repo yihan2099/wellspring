@@ -39,7 +39,7 @@ Audit date: 2026-03-12
 
 ## P3 — Low
 
-- [ ] #014 [Code Quality] Remove unnecessary `RunE` from rootCmd or add a comment explaining why it's kept (`cmd/root.go:70`)
+- [x] #014 [Code Quality] Remove unnecessary `RunE` from rootCmd or add a comment explaining why it's kept (`cmd/root.go:70`)
 - [ ] #015 [Code Quality] Update `Description()` to match actual `Endpoints()` — remove "technical indicators" or add indicator endpoint (`alphavantage.go:43-45`)
 - [ ] #027 [Code Quality] Add validation to `RateLimitConfig`: require `Requests > 0` and `Per > 0`; validate on adapter registration (`adapter.go`)
 - [ ] #028 [API Contracts] Add YAML comment documenting NYC default coordinates; consider requiring explicit lat/lon with helpful error message (`openmeteo.yaml`)
