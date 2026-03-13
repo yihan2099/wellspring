@@ -321,6 +321,10 @@ func (a *DeclarativeAdapter) parseResponse(ctx context.Context, body []byte, lim
 }
 
 // fetchItems handles APIs that return an array of IDs, then fetches each item.
+// A hard cap of 50 items prevents runaway HTTP requests when a large limit
+// or no limit is specified (e.g., HN returns 500 IDs per list endpoint).
+const maxResolveItems = 50
+
 func (a *DeclarativeAdapter) fetchItems(ctx context.Context, raw any, limit int, params map[string]string) ([]adapter.DataPoint, error) {
 	arr, ok := raw.([]any)
 	if !ok {
@@ -329,6 +333,10 @@ func (a *DeclarativeAdapter) fetchItems(ctx context.Context, raw any, limit int,
 
 	if limit > 0 && len(arr) > limit {
 		arr = arr[:limit]
+	}
+	// Hard cap to prevent excessive HTTP requests.
+	if len(arr) > maxResolveItems {
+		arr = arr[:maxResolveItems]
 	}
 
 	itemEp, ok := a.def.Endpoints[a.def.Mapping.ItemEndpoint]
