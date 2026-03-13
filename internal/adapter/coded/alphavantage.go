@@ -61,7 +61,7 @@ func (a *AlphaVantageAdapter) Fetch(ctx context.Context, params map[string]strin
 	}
 	apiKey := a.getAPIKey(params)
 	if apiKey == "" {
-		return nil, fmt.Errorf("Alpha Vantage requires an API key\n\n" +
+		return nil, adapter.NewAuthRequiredError("Alpha Vantage requires an API key\n\n" +
 			"Set it via:\n" +
 			"  export WSP_ALPHA_VANTAGE_KEY=your_key\n" +
 			"  or in ~/.config/wellspring/config.toml under [keys]\n\n" +
@@ -81,14 +81,14 @@ func (a *AlphaVantageAdapter) Fetch(ctx context.Context, params map[string]strin
 	case "search":
 		return a.fetchSearch(ctx, params, apiKey)
 	default:
-		return nil, fmt.Errorf("unknown action %q for alphavantage (available: quote, daily, search)", action)
+		return nil, adapter.NewInvalidInputError(fmt.Sprintf("unknown action %q for alphavantage (available: quote, daily, search)", action))
 	}
 }
 
 func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]string, apiKey string) ([]adapter.DataPoint, error) {
 	symbol := params["symbol"]
 	if symbol == "" {
-		return nil, fmt.Errorf("--symbol is required for stock quotes\n\nExample: wsp finance quote --symbol=AAPL")
+		return nil, adapter.NewInvalidInputError("--symbol is required for stock quotes\n\nExample: wsp finance quote --symbol=AAPL")
 	}
 
 	params_ := url.Values{}
@@ -144,7 +144,7 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 func (a *AlphaVantageAdapter) fetchDaily(ctx context.Context, params map[string]string, apiKey string) ([]adapter.DataPoint, error) {
 	symbol := params["symbol"]
 	if symbol == "" {
-		return nil, fmt.Errorf("--symbol is required for daily time series\n\nExample: wsp finance daily --symbol=AAPL")
+		return nil, adapter.NewInvalidInputError("--symbol is required for daily time series\n\nExample: wsp finance daily --symbol=AAPL")
 	}
 
 	limit := 10
@@ -227,7 +227,7 @@ func (a *AlphaVantageAdapter) fetchSearch(ctx context.Context, params map[string
 		query = params["symbol"]
 	}
 	if query == "" {
-		return nil, fmt.Errorf("--query or --symbol is required for search\n\nExample: wsp finance search --query=Apple")
+		return nil, adapter.NewInvalidInputError("--query or --symbol is required for search\n\nExample: wsp finance search --query=Apple")
 	}
 
 	params_ := url.Values{}
@@ -352,7 +352,7 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, baseURL string, api
 // signaled via "Note" or "Information" top-level keys.
 func checkAVError(result map[string]any) error {
 	if note, ok := result["Note"]; ok {
-		return fmt.Errorf("rate limited by Alpha Vantage: %v\n\nHint: free tier allows 5 requests/minute", note)
+		return adapter.NewRateLimitError(fmt.Sprintf("rate limited by Alpha Vantage: %v\n\nHint: free tier allows 5 requests/minute", note))
 	}
 	if info, ok := result["Information"]; ok {
 		return fmt.Errorf("Alpha Vantage: %v", info)

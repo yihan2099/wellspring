@@ -2,8 +2,33 @@ package adapter
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 )
+
+// Sentinel error types for structured error classification.
+// Use errors.Is() to check and fmt.Errorf("...: %w", ErrRateLimit) to wrap.
+var (
+	ErrRateLimit    = errors.New("rate limit")
+	ErrAuthRequired = errors.New("auth required")
+	ErrInvalidInput = errors.New("invalid input")
+)
+
+// NewRateLimitError creates a rate limit error wrapping the sentinel.
+func NewRateLimitError(msg string) error {
+	return fmt.Errorf("%s: %w", msg, ErrRateLimit)
+}
+
+// NewAuthRequiredError creates an auth-required error wrapping the sentinel.
+func NewAuthRequiredError(msg string) error {
+	return fmt.Errorf("%s: %w", msg, ErrAuthRequired)
+}
+
+// NewInvalidInputError creates an invalid-input error wrapping the sentinel.
+func NewInvalidInputError(msg string) error {
+	return fmt.Errorf("%s: %w", msg, ErrInvalidInput)
+}
 
 // RateLimitConfig defines rate limiting parameters for an adapter.
 type RateLimitConfig struct {

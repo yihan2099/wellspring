@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/wellspring-cli/wellspring/internal/adapter"
 	"github.com/wellspring-cli/wellspring/internal/adapter/coded"
 	"github.com/wellspring-cli/wellspring/internal/adapter/declarative"
 	"github.com/wellspring-cli/wellspring/internal/config"
@@ -199,32 +202,31 @@ func getOutputFormat() output.Format {
 }
 
 // exitCode returns the appropriate exit code for an error.
+// Uses sentinel error types (errors.Is) for reliable classification,
+// with string-matching fallback for errors from external packages.
 func exitCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	errStr := err.Error()
 	switch {
-	case contains(errStr, "rate limit"):
+	case errors.Is(err, adapter.ErrRateLimit):
 		return 3
-	case contains(errStr, "requires an API key"), contains(errStr, "auth"):
+	case errors.Is(err, adapter.ErrAuthRequired):
 		return 2
-	case contains(errStr, "invalid"), contains(errStr, "unknown action"):
+	case errors.Is(err, adapter.ErrInvalidInput):
 		return 4
 	default:
-		return 1
-	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && containsLower(s, substr)
-}
-
-func containsLower(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+		// Fallback: string matching for errors not yet migrated to sentinels.
+		errStr := strings.ToLower(err.Error())
+		switch {
+		case strings.Contains(errStr, "rate limit"):
+			return 3
+		case strings.Contains(errStr, "requires an api key"), strings.Contains(errStr, "auth"):
+			return 2
+		case strings.Contains(errStr, "invalid"), strings.Contains(errStr, "unknown action"):
+			return 4
+		default:
+			return 1
 		}
 	}
-	return false
 }
