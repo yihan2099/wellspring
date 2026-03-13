@@ -131,6 +131,12 @@ func (r *Registry) SetCatalog(entries []CatalogEntry) {
 }
 
 // Sources returns information about all known sources (catalog + adapters).
+//
+// Metadata precedence: when a source exists in both the catalog and as a
+// registered adapter, the catalog entry's metadata (Name, Description,
+// Category, Auth) takes precedence. This is by design — the catalog is
+// curated and may contain richer descriptions than the adapter's built-in
+// metadata. Adapters not in the catalog use their own metadata as-is.
 func (r *Registry) Sources(filter SourceFilter) []SourceInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -143,7 +149,8 @@ func (r *Registry) Sources(filter SourceFilter) []SourceInfo {
 
 	var sources []SourceInfo
 
-	// Add catalog entries.
+	// Add catalog entries first — catalog metadata wins over adapter metadata
+	// for sources that exist in both (see precedence note above).
 	seen := make(map[string]bool)
 	for _, entry := range r.catalog {
 		name := strings.ToLower(entry.Name)
