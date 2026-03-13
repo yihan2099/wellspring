@@ -52,7 +52,11 @@ func ConfigDir() string {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
 		return filepath.Join(dir, "wellspring")
 	}
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fall back to /tmp if $HOME is not set (e.g., minimal containers).
+		return filepath.Join(os.TempDir(), "wellspring", "config")
+	}
 	return filepath.Join(home, ".config", "wellspring")
 }
 
@@ -64,7 +68,11 @@ func DefaultCacheDir() string {
 	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
 		return filepath.Join(dir, "wellspring")
 	}
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fall back to /tmp if $HOME is not set (e.g., minimal containers).
+		return filepath.Join(os.TempDir(), "wellspring", "cache")
+	}
 	return filepath.Join(home, ".cache", "wellspring")
 }
 
