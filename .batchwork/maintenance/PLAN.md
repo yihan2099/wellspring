@@ -7,7 +7,7 @@ Audit date: 2026-03-12
 ## P0 — Critical
 
 - [x] #001 [Security] Fix API key leakage: build request URLs with `net/url.Values` instead of `fmt.Sprintf`; pass key via header or build URL without key in string; ensure all error paths mask credentials (`alphavantage.go`)
-- [ ] #016 [Error Handling] Coerce non-string MCP arguments: add `fmt.Sprintf("%v", val)` fallback for non-string types in `makeHandler` arg extraction loop (`mcp/server.go:118`)
+- [x] #016 [Error Handling] Coerce non-string MCP arguments: add `fmt.Sprintf("%v", val)` fallback for non-string types in `makeHandler` arg extraction loop (`mcp/server.go:118`)
 
 ## P1 — High
 
