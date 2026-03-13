@@ -155,10 +155,14 @@ func initGlobals() {
 	reg.Register(coded.NewAlphaVantageAdapter(cfg.GetAPIKey("ALPHA_VANTAGE")))
 
 	// Load catalog.
-	reg.LoadCatalog()
+	if err := reg.LoadCatalog(); err != nil && !flagQuiet {
+		fmt.Fprintf(os.Stderr, "warning: failed to load catalog: %v\n", err)
+	}
 
 	// Load user-defined sources (highest priority — may override built-in).
-	reg.LoadUserSources()
+	if err := reg.LoadUserSources(); err != nil && !flagQuiet {
+		fmt.Fprintf(os.Stderr, "warning: failed to load user sources: %v\n", err)
+	}
 
 	// Background sync if not offline.
 	if !flagOffline {
