@@ -67,6 +67,12 @@ Environment variables:
   NO_COLOR                Disable color output`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Initialize global state after flags are parsed so --cache, --offline,
+		// and --debug take effect during initialization.
+		initOnce.Do(initGlobals)
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If no subcommand given, show quick-start guide.
 		return cmd.Help()
@@ -103,9 +109,6 @@ var initOnce sync.Once
 
 // Execute runs the root command.
 func Execute() error {
-	// Initialize global state (safe for concurrent calls).
-	initOnce.Do(initGlobals)
-
 	err := rootCmd.Execute()
 	if err != nil {
 		if flagJSON {
