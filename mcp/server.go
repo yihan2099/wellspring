@@ -60,12 +60,22 @@ func (s *Server) registerTools() {
 					mcp.WithString("time", mcp.Description("Time filter (hour, day, week, month, year, all)"), mcp.DefaultString("day")),
 				)
 			case "alphavantage":
-				tool = mcp.NewTool(
-					toolName,
-					mcp.WithDescription(fmt.Sprintf("Alpha Vantage — %s", ep)),
-					mcp.WithString("symbol", mcp.Description("Stock ticker symbol"), mcp.Required()),
-					mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
-				)
+				if ep == "search" {
+					tool = mcp.NewTool(
+						toolName,
+						mcp.WithDescription("Alpha Vantage — search for stock symbols"),
+						mcp.WithString("query", mcp.Description("Search query (company name or partial symbol)"), mcp.Required()),
+						mcp.WithString("symbol", mcp.Description("Alias for query (stock ticker symbol)")),
+						mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
+					)
+				} else {
+					tool = mcp.NewTool(
+						toolName,
+						mcp.WithDescription(fmt.Sprintf("Alpha Vantage — %s", ep)),
+						mcp.WithString("symbol", mcp.Description("Stock ticker symbol"), mcp.Required()),
+						mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
+					)
+				}
 			default:
 				// For declarative adapters, auto-generate tool parameters from the
 				// YAML endpoint definition (query params + path template params).
