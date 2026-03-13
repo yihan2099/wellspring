@@ -12,7 +12,7 @@ Audit date: 2026-03-12
 ## P1 — High
 
 - [x] #002 [Race Conditions] Move `initGlobals()` inside `PersistentPreRunE` on rootCmd so flags are parsed before global state reads them (`cmd/root.go`)
-- [ ] #003 [Type Safety] Add nil-params guard or document contract that `Fetch()` always receives non-nil map (`alphavantage.go:54`)
+- [x] #003 [Type Safety] Add nil-params guard or document contract that `Fetch()` always receives non-nil map (`alphavantage.go:54`)
 - [ ] #004 [Reliability] Add retry with exponential backoff (max 3 attempts) for transient HTTP errors (429, 5xx) in both `reddit.go` and `alphavantage.go`
 - [ ] #005 [Error Handling] Extract AV error-checking (`"Note"`, `"Information"` keys) into `doRequest()` so all fetch functions benefit, including `fetchSearch` which currently lacks it (`alphavantage.go`)
 - [ ] #017 [API Contracts] Generate MCP tool parameters from declarative YAML endpoint params instead of hardcoding per-source switch; keep switch only for coded adapters (`mcp/server.go:54-90`)
