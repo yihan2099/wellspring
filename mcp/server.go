@@ -112,11 +112,14 @@ func (s *Server) makeHandler(a adapter.Adapter, endpoint string) server.ToolHand
 			"action": endpoint,
 		}
 
-		// Extract all string arguments from the request.
+		// Extract all arguments from the request, coercing non-string types
+		// (e.g., JSON numbers like {"limit": 10}) to their string representation.
 		if args := request.GetArguments(); args != nil {
 			for key, val := range args {
 				if strVal, ok := val.(string); ok {
 					params[key] = strVal
+				} else if val != nil {
+					params[key] = fmt.Sprintf("%v", val)
 				}
 			}
 		}
