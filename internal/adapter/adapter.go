@@ -36,6 +36,12 @@ type RateLimitConfig struct {
 	Per      time.Duration `json:"per" yaml:"per"`
 }
 
+// Valid returns true if the rate limit config has safe, non-zero values.
+// A zero Per duration would cause division-by-zero in rate calculations.
+func (c RateLimitConfig) Valid() bool {
+	return c.Requests > 0 && c.Per > 0
+}
+
 // DataPoint is the normalized output format for all adapters.
 type DataPoint struct {
 	Source   string         `json:"source"`

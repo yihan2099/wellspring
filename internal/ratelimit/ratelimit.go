@@ -30,7 +30,12 @@ func NewLimiter() *Limiter {
 
 // Allow checks if a request to the given source is allowed.
 // Returns true if allowed, false if rate limited, and the wait duration.
+// If the config is invalid (zero requests or zero duration), always allows.
 func (l *Limiter) Allow(source string, cfg adapter.RateLimitConfig) (bool, time.Duration) {
+	if !cfg.Valid() {
+		return true, 0
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
