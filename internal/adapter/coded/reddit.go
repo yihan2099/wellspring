@@ -77,6 +77,13 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 		action = "hot"
 	}
 
+	// Validate action against known endpoints.
+	validActions := map[string]bool{"hot": true, "top": true, "new": true, "rising": true}
+	if !validActions[action] {
+		return nil, adapter.NewInvalidInputError(
+			fmt.Sprintf("unknown action %q for reddit (available: hot, top, new, rising)", action))
+	}
+
 	subreddit := params["subreddit"]
 	if subreddit == "" {
 		subreddit = "technology"
@@ -87,6 +94,12 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 		if n, err := strconv.Atoi(l); err == nil {
 			limit = n
 		}
+	}
+	// Clamp limit to valid range.
+	if limit < 1 {
+		limit = 1
+	} else if limit > 100 {
+		limit = 100
 	}
 
 	// Build URL.
