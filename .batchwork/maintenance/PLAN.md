@@ -34,7 +34,7 @@ Audit date: 2026-03-12
 - [x] #022 [Reliability] Add `max_resolve` or `limit` parameter to HackerNews list endpoints to cap ID resolution count (`hackernews.yaml`, declarative engine)
 - [x] #023 [Code Quality] Add defensive parsing for `ParsePublicAPIsREADME`: handle escaped pipes, log malformed lines, add unit tests with edge cases (`registry.go:285`)
 - [x] #024 [Error Handling] Return MCP-level error (second return value) in addition to tool-result error for marshaling failures, so clients can distinguish transport vs. data errors (`mcp/server.go:130`)
-- [ ] #025 [Dependencies] Pin charmbracelet transitive deps to tagged releases; check if lipgloss has a newer version that uses stable deps; or vendor (`go.mod`)
+- [ ] #025 [Dependencies] Pin charmbracelet transitive deps to tagged releases; check if lipgloss has a newer version that uses stable deps; or vendor (`go.mod`) — SKIPPED: upgrading to tagged releases requires bumping Go from 1.24 to 1.25 (colorprofile v0.4.3 requires go >= 1.25.0); defer to a dedicated dependency upgrade PR
 - [x] #026 [Environment] Document that catalog metadata takes precedence over adapter metadata in `Sources()` merge logic; add comment explaining design choice (`registry.go:134`)
 
 ## P3 — Low
