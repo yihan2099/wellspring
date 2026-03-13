@@ -110,12 +110,8 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
 
-	// Check for rate limit message.
-	if note, ok := result["Note"]; ok {
-		return nil, fmt.Errorf("rate limited by Alpha Vantage: %v\n\nHint: free tier allows 5 requests/minute", note)
-	}
-	if info, ok := result["Information"]; ok {
-		return nil, fmt.Errorf("Alpha Vantage: %v", info)
+	if err := checkAVError(result); err != nil {
+		return nil, err
 	}
 
 	quote, ok := result["Global Quote"].(map[string]any)
@@ -183,8 +179,8 @@ func (a *AlphaVantageAdapter) fetchDaily(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
 
-	if note, ok := result["Note"]; ok {
-		return nil, fmt.Errorf("rate limited by Alpha Vantage: %v", note)
+	if err := checkAVError(result); err != nil {
+		return nil, err
 	}
 
 	timeSeries, ok := result["Time Series (Daily)"].(map[string]any)
@@ -251,6 +247,10 @@ func (a *AlphaVantageAdapter) fetchSearch(ctx context.Context, params map[string
 	var result map[string]any
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+
+	if err := checkAVError(result); err != nil {
+		return nil, err
 	}
 
 	matches, ok := result["bestMatches"].([]any)
@@ -349,6 +349,19 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, baseURL string, api
 	}
 
 	return nil, lastErr
+}
+
+// checkAVError inspects a parsed Alpha Vantage response for API-level errors.
+// AV returns HTTP 200 for all responses, including rate limits and errors,
+// signaled via "Note" or "Information" top-level keys.
+func checkAVError(result map[string]any) error {
+	if note, ok := result["Note"]; ok {
+		return fmt.Errorf("rate limited by Alpha Vantage: %v\n\nHint: free tier allows 5 requests/minute", note)
+	}
+	if info, ok := result["Information"]; ok {
+		return fmt.Errorf("Alpha Vantage: %v", info)
+	}
+	return nil
 }
 
 // maskAPIKey replaces API key values in error messages to prevent credential leakage.
