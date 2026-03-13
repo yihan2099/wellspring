@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -102,9 +103,9 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 		limit = 100
 	}
 
-	// Build URL.
-	url := fmt.Sprintf("https://www.reddit.com/r/%s/%s.json?limit=%d&raw_json=1",
-		subreddit, action, limit)
+	// Build URL with path-escaped subreddit name to handle special characters.
+	reqURL := fmt.Sprintf("https://www.reddit.com/r/%s/%s.json?limit=%d&raw_json=1",
+		url.PathEscape(subreddit), url.PathEscape(action), limit)
 
 	// Add time filter for "top".
 	if action == "top" {
@@ -112,7 +113,7 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 		if t == "" {
 			t = "day"
 		}
-		url += "&t=" + t
+		reqURL += "&t=" + t
 	}
 
 	const maxRetries = 3
@@ -130,7 +131,7 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 			}
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 		if err != nil {
 			return nil, fmt.Errorf("building request: %w", err)
 		}
