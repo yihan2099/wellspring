@@ -102,32 +102,59 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 		url += "&t=" + t
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("building request: %w", err)
+	const maxRetries = 3
+	var body []byte
+	var lastErr error
+
+	for attempt := range maxRetries {
+		if attempt > 0 {
+			// Exponential backoff: 1s, 2s, 4s.
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("building request: %w", err)
+		}
+
+		// Reddit requires a proper User-Agent to avoid rate limiting.
+		req.Header.Set("User-Agent", "wellspring-cli/0.1 (github.com/wellspring-cli/wellspring)")
+
+		resp, err := a.client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("fetching r/%s/%s: %w", subreddit, action, err)
+			continue
+		}
+
+		respBody, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("Reddit API returned status %d: %s", resp.StatusCode, truncateBody(string(respBody)))
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Reddit API returned status %d: %s", resp.StatusCode, truncateBody(string(respBody)))
+		}
+
+		if readErr != nil {
+			lastErr = fmt.Errorf("reading response: %w", readErr)
+			continue
+		}
+
+		body = respBody
+		lastErr = nil
+		break
 	}
 
-	// Reddit requires a proper User-Agent to avoid rate limiting.
-	req.Header.Set("User-Agent", "wellspring-cli/0.1 (github.com/wellspring-cli/wellspring)")
-
-	resp, err := a.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetching r/%s/%s: %w", subreddit, action, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, fmt.Errorf("rate limited by Reddit — try again in a moment")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Reddit API returned status %d: %s", resp.StatusCode, truncateBody(string(body)))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+	if lastErr != nil {
+		return nil, lastErr
 	}
 
 	var listing redditListing
