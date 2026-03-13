@@ -76,8 +76,9 @@ Environment variables:
 		initOnce.Do(initGlobals)
 		return nil
 	},
+	// RunE is explicitly set to show help when no subcommand is given.
+	// While Cobra shows help by default, explicit is preferred over implicit.
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// If no subcommand given, show quick-start guide.
 		return cmd.Help()
 	},
 }
