@@ -164,7 +164,11 @@ func (s *Server) makeHandler(a adapter.Adapter, endpoint string) server.ToolHand
 			"results": points,
 		}, "", "  ")
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("marshaling results: %v", err)), nil
+			// Return both MCP tool-result error (for display) and Go error (for
+			// MCP-level error status), so clients can distinguish transport/marshal
+			// errors from data-level errors.
+			return mcp.NewToolResultError(fmt.Sprintf("marshaling results: %v", err)),
+				fmt.Errorf("marshaling results: %w", err)
 		}
 
 		return mcp.NewToolResultText(string(data)), nil
