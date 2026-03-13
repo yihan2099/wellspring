@@ -28,7 +28,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Registered %d adapters\n", len(reg.All()))
 	}
 
-	srv := mcpserver.NewServer(reg, Version)
+	srv := mcpserver.NewServer(reg, Version, limiter)
 
 	if flagDebug {
 		fmt.Fprintln(os.Stderr, "[debug] MCP server listening on stdio")

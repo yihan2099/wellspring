@@ -9,19 +9,20 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/wellspring-cli/wellspring/internal/adapter"
 	"github.com/wellspring-cli/wellspring/internal/adapter/declarative"
+	"github.com/wellspring-cli/wellspring/internal/ratelimit"
 	"github.com/wellspring-cli/wellspring/internal/registry"
 )
 
 // Server wraps the MCP server and adapter registry.
 type Server struct {
-	reg    *registry.Registry
-	server *server.MCPServer
+	reg     *registry.Registry
+	server  *server.MCPServer
+	limiter *ratelimit.Limiter
 }
 
 // NewServer creates a new MCP server that exposes all registered adapters as tools.
-// TODO: Consider adding access control (e.g., allow/deny list for tools,
-// rate limiting per client) for production MCP deployments.
-func NewServer(reg *registry.Registry, version string) *Server {
+// The limiter enforces per-source rate limits for MCP tool calls.
+func NewServer(reg *registry.Registry, version string, limiter *ratelimit.Limiter) *Server {
 	s := server.NewMCPServer(
 		"wellspring",
 		version,
@@ -29,8 +30,9 @@ func NewServer(reg *registry.Registry, version string) *Server {
 	)
 
 	srv := &Server{
-		reg:    reg,
-		server: s,
+		reg:     reg,
+		server:  s,
+		limiter: limiter,
 	}
 
 	srv.registerTools()
@@ -117,6 +119,13 @@ func (s *Server) buildDeclarativeTool(toolName string, adp adapter.Adapter, ep s
 // makeHandler creates an MCP tool handler for a given adapter and endpoint.
 func (s *Server) makeHandler(a adapter.Adapter, endpoint string) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Enforce per-source rate limits.
+		if s.limiter != nil {
+			if ok, wait := s.limiter.Allow(a.Name(), a.RateLimit()); !ok {
+				return mcp.NewToolResultError(ratelimit.FormatRateLimitError(a.Name(), wait)), nil
+			}
+		}
+
 		params := map[string]string{
 			"action": endpoint,
 		}
