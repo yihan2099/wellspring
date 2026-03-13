@@ -60,6 +60,9 @@ func (a *AlphaVantageAdapter) getAPIKey(params map[string]string) string {
 }
 
 func (a *AlphaVantageAdapter) Fetch(ctx context.Context, params map[string]string) ([]adapter.DataPoint, error) {
+	if params == nil {
+		params = make(map[string]string)
+	}
 	apiKey := a.getAPIKey(params)
 	if apiKey == "" {
 		return nil, fmt.Errorf("Alpha Vantage requires an API key\n\n" +

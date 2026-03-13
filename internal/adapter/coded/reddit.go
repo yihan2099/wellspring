@@ -69,6 +69,9 @@ type redditPost struct {
 }
 
 func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]adapter.DataPoint, error) {
+	if params == nil {
+		params = make(map[string]string)
+	}
 	action := params["action"]
 	if action == "" {
 		action = "hot"
