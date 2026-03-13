@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -91,10 +92,12 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 		return nil, fmt.Errorf("--symbol is required for stock quotes\n\nExample: wsp finance quote --symbol=AAPL")
 	}
 
-	url := fmt.Sprintf("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=%s&apikey=%s",
-		strings.ToUpper(symbol), apiKey)
+	params_ := url.Values{}
+	params_.Set("function", "GLOBAL_QUOTE")
+	params_.Set("symbol", strings.ToUpper(symbol))
+	reqURL := "https://www.alphavantage.co/query?" + params_.Encode()
 
-	body, err := a.doRequest(ctx, url)
+	body, err := a.doRequest(ctx, reqURL, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -161,10 +164,13 @@ func (a *AlphaVantageAdapter) fetchDaily(ctx context.Context, params map[string]
 		outputsize = "full"
 	}
 
-	url := fmt.Sprintf("https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=%s&outputsize=%s&apikey=%s",
-		strings.ToUpper(symbol), outputsize, apiKey)
+	params_ := url.Values{}
+	params_.Set("function", "TIME_SERIES_DAILY")
+	params_.Set("symbol", strings.ToUpper(symbol))
+	params_.Set("outputsize", outputsize)
+	reqURL := "https://www.alphavantage.co/query?" + params_.Encode()
 
-	body, err := a.doRequest(ctx, url)
+	body, err := a.doRequest(ctx, reqURL, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -229,10 +235,12 @@ func (a *AlphaVantageAdapter) fetchSearch(ctx context.Context, params map[string
 		return nil, fmt.Errorf("--query or --symbol is required for search\n\nExample: wsp finance search --query=Apple")
 	}
 
-	url := fmt.Sprintf("https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=%s&apikey=%s",
-		query, apiKey)
+	params_ := url.Values{}
+	params_.Set("function", "SYMBOL_SEARCH")
+	params_.Set("keywords", query)
+	reqURL := "https://www.alphavantage.co/query?" + params_.Encode()
 
-	body, err := a.doRequest(ctx, url)
+	body, err := a.doRequest(ctx, reqURL, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -279,8 +287,18 @@ func (a *AlphaVantageAdapter) fetchSearch(ctx context.Context, params map[string
 	return points, nil
 }
 
-func (a *AlphaVantageAdapter) doRequest(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+func (a *AlphaVantageAdapter) doRequest(ctx context.Context, baseURL string, apiKey string) ([]byte, error) {
+	// Add API key to URL at request time only — it never appears in the baseURL
+	// string, so log messages, error traces, and caller code cannot leak it.
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("building request: %w", err)
+	}
+	q := u.Query()
+	q.Set("apikey", apiKey)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
@@ -295,7 +313,7 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, url string) ([]byte
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Alpha Vantage returned status %d: %s", resp.StatusCode, truncateBody(string(body)))
+		return nil, fmt.Errorf("Alpha Vantage returned status %d: %s", resp.StatusCode, maskAPIKeyInString(truncateBody(string(body)), apiKey))
 	}
 
 	return io.ReadAll(resp.Body)
@@ -314,6 +332,14 @@ func maskAPIKey(err error) error {
 		}
 	}
 	return fmt.Errorf("%s", msg)
+}
+
+// maskAPIKeyInString replaces literal occurrences of the API key in a string.
+func maskAPIKeyInString(s, apiKey string) string {
+	if apiKey == "" {
+		return s
+	}
+	return strings.ReplaceAll(s, apiKey, "***")
 }
 
 // Helper to get a float from a map with a string value.
