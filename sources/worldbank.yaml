@@ -17,21 +17,21 @@ endpoints:
     params:
       format: json
       per_page: "10"
-      date: "2015:2024"
+      date: "2016:2026"
   population:
     path: /country/{country}/indicator/SP.POP.TOTL
     method: GET
     params:
       format: json
       per_page: "10"
-      date: "2015:2024"
+      date: "2016:2026"
   gdp:
     path: /country/{country}/indicator/NY.GDP.MKTP.CD
     method: GET
     params:
       format: json
       per_page: "10"
-      date: "2015:2024"
+      date: "2016:2026"
 
 mapping:
   title: .country.value
