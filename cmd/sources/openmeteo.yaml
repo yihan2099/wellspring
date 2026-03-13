@@ -9,6 +9,7 @@ endpoints:
     path: /forecast
     method: GET
     params:
+      # Default: New York City. Override via --latitude/--longitude or MCP params.
       latitude: "40.7128"
       longitude: "-74.0060"
       current: "temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
@@ -19,6 +20,7 @@ endpoints:
     path: /forecast
     method: GET
     params:
+      # Default: New York City. Override via --latitude/--longitude or MCP params.
       latitude: "40.7128"
       longitude: "-74.0060"
       current: "temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code"
