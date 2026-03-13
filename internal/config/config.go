@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -79,16 +80,26 @@ func ConfigFilePath() string {
 
 // GetAPIKey returns an API key using the following precedence (highest to lowest):
 //  1. WSP_<NAME>_KEY environment variable (e.g., WSP_ALPHA_VANTAGE_KEY)
-//  2. Config file keys section (~/.config/wellspring/config.toml [keys])
+//  2. Legacy fallback: <NAME>_API_KEY environment variable
+//  3. Config file keys section (~/.config/wellspring/config.toml [keys])
 //
+// The name is normalized to UPPER_CASE for env var lookup, so both
+// "alpha_vantage" and "ALPHA_VANTAGE" resolve to WSP_ALPHA_VANTAGE_KEY.
 // Returns "" if no key is found at any level.
 func (c *Config) GetAPIKey(name string) string {
-	// 1. Check environment variable first (highest priority).
-	envKey := os.Getenv("WSP_" + name + "_KEY")
+	upperName := strings.ToUpper(name)
+
+	// 1. Check WSP_<NAME>_KEY environment variable first (highest priority).
+	envKey := os.Getenv("WSP_" + upperName + "_KEY")
 	if envKey != "" {
 		return envKey
 	}
-	// 2. Fall back to config file.
+	// 2. Check legacy <NAME>_API_KEY environment variable.
+	envKey = os.Getenv(upperName + "_API_KEY")
+	if envKey != "" {
+		return envKey
+	}
+	// 3. Fall back to config file.
 	if c.Keys != nil {
 		return c.Keys[name]
 	}

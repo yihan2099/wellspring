@@ -149,7 +149,7 @@ func initGlobals() {
 
 	// Register coded adapters.
 	reg.Register(coded.NewRedditAdapter())
-	reg.Register(coded.NewAlphaVantageAdapter())
+	reg.Register(coded.NewAlphaVantageAdapter(cfg.GetAPIKey("ALPHA_VANTAGE")))
 
 	// Load catalog.
 	reg.LoadCatalog()

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,13 +23,10 @@ type AlphaVantageAdapter struct {
 }
 
 // NewAlphaVantageAdapter creates a new Alpha Vantage adapter.
-func NewAlphaVantageAdapter() *AlphaVantageAdapter {
-	// Try to get API key from environment.
-	apiKey := os.Getenv("WSP_ALPHA_VANTAGE_KEY")
-	if apiKey == "" {
-		apiKey = os.Getenv("ALPHA_VANTAGE_API_KEY")
-	}
-
+// The apiKey parameter should be resolved by the caller via config.GetAPIKey("ALPHA_VANTAGE"),
+// which handles env var lookup (WSP_ALPHA_VANTAGE_KEY, ALPHA_VANTAGE_API_KEY) and config file
+// fallback in a single, auditable code path.
+func NewAlphaVantageAdapter(apiKey string) *AlphaVantageAdapter {
 	return &AlphaVantageAdapter{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
