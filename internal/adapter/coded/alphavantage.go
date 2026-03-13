@@ -37,7 +37,7 @@ func NewAlphaVantageAdapter(apiKey string) *AlphaVantageAdapter {
 
 func (a *AlphaVantageAdapter) Name() string        { return "alphavantage" }
 func (a *AlphaVantageAdapter) Category() string     { return "finance" }
-func (a *AlphaVantageAdapter) Description() string  { return "Alpha Vantage — stock quotes, time series, technical indicators" }
+func (a *AlphaVantageAdapter) Description() string  { return "Alpha Vantage — stock quotes, daily time series, symbol search" }
 func (a *AlphaVantageAdapter) RequiresAuth() bool   { return true }
 func (a *AlphaVantageAdapter) Endpoints() []string  { return []string{"quote", "daily", "search"} }
 
