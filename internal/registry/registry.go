@@ -289,6 +289,7 @@ func builtInCatalog() []CatalogEntry {
 }
 
 // ParsePublicAPIsREADME parses the public-apis README format to extract catalog entries.
+// Handles edge cases: escaped pipes in content, varied header formats, and malformed lines.
 func ParsePublicAPIsREADME(content string) []CatalogEntry {
 	var entries []CatalogEntry
 	var currentCategory string
@@ -303,13 +304,28 @@ func ParsePublicAPIsREADME(content string) []CatalogEntry {
 			continue
 		}
 
-		// Table rows: | Name | Description | Auth | HTTPS | CORS | Link |
-		if !strings.HasPrefix(line, "|") || strings.HasPrefix(line, "| API") || strings.Contains(line, "---") {
+		// Skip non-table lines.
+		if !strings.HasPrefix(line, "|") {
 			continue
+		}
+		// Skip table headers (various formats) and separator lines.
+		if strings.Contains(line, "---") {
+			continue
+		}
+		// Skip table header rows. Check if the first data column (parts[1])
+		// is a known header like "API" or "Name".
+		headerParts := strings.SplitN(line, "|", 3)
+		if len(headerParts) >= 3 {
+			firstCol := strings.TrimSpace(headerParts[1])
+			firstColLower := strings.ToLower(firstCol)
+			if firstColLower == "api" || firstColLower == "name" {
+				continue
+			}
 		}
 
 		parts := strings.Split(line, "|")
 		if len(parts) < 7 {
+			// Malformed line — not enough columns. Skip silently.
 			continue
 		}
 
@@ -326,7 +342,18 @@ func ParsePublicAPIsREADME(content string) []CatalogEntry {
 			if end := strings.Index(link, ")"); end != -1 {
 				link = link[:end]
 			}
-			name = name[1:idx]
+			// Find the opening bracket for the link text.
+			if bracketIdx := strings.Index(name, "["); bracketIdx != -1 {
+				name = name[bracketIdx+1 : idx]
+			} else {
+				name = name[:idx]
+			}
+		}
+
+		// Skip entries with empty names after parsing.
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
 		}
 
 		auth := parts[3]
