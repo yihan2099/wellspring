@@ -153,6 +153,9 @@ func (a *AlphaVantageAdapter) fetchDaily(ctx context.Context, params map[string]
 			limit = n
 		}
 	}
+	if limit < 1 {
+		limit = 1
+	}
 
 	outputsize := "compact"
 	if limit > 100 {
@@ -259,6 +262,9 @@ func (a *AlphaVantageAdapter) fetchSearch(ctx context.Context, params map[string
 		if n, err := strconv.Atoi(l); err == nil {
 			limit = n
 		}
+	}
+	if limit < 1 {
+		limit = 1
 	}
 	if len(matches) > limit {
 		matches = matches[:limit]
