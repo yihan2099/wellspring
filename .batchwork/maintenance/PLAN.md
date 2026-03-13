@@ -24,7 +24,7 @@ Audit date: 2026-03-12
 - [x] #006 [Code Quality] Replace string-based `exitCode()` with sentinel error types (`ErrRateLimit`, `ErrAuthRequired`, `ErrInvalidInput`) and `errors.Is()` (`cmd/root.go`)
 - [ ] #007 [Data Integrity] Log warnings when expected API fields are missing from Alpha Vantage responses; consider returning partial-data indicator in `DataPoint.Meta` (`alphavantage.go`)
 - [x] #008 [API Contracts] Validate `action` against `Endpoints()` in Reddit `Fetch()`; validate `limit` range (clamp to 1-100); source default subreddit from config (`reddit.go`)
-- [ ] #009 [API Contracts] Unify search parameter naming: accept both `--query` and `--symbol` for search, document the canonical name; expose `query` in MCP tool def for search endpoint (`alphavantage.go`, `mcp/server.go`)
+- [x] #009 [API Contracts] Unify search parameter naming: accept both `--query` and `--symbol` for search, document the canonical name; expose `query` in MCP tool def for search endpoint (`alphavantage.go`, `mcp/server.go`)
 - [x] #010 [Security] Use `req.URL` builder (`net/url`) to add API key as query param after URL construction, or pass key via `X-API-Key` header if Alpha Vantage supports it (`alphavantage.go`) — addressed by #001
 - [x] #011 [Reliability] Check and log errors from `LoadUserSources()` and `LoadCatalog()` in `initGlobals()`; surface warnings unless `--quiet` (`cmd/root.go:152-155`)
 - [x] #012 [Performance] Use `url.PathEscape()` for subreddit name in URL construction (`reddit.go:90`)
