@@ -192,6 +192,51 @@ func (c *Cache) Status() (total int, expired int) {
 	return total, expired
 }
 
+// CleanExpired removes all expired cache entries and returns the count removed.
+func (c *Cache) CleanExpired() int {
+	entries, err := os.ReadDir(c.dir)
+	if err != nil {
+		return 0
+	}
+	now := time.Now()
+	removed := 0
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(c.dir, e.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var entry CacheEntry
+		if json.Unmarshal(data, &entry) == nil && now.After(entry.ExpiresAt) {
+			if os.Remove(path) == nil {
+				removed++
+			}
+		}
+	}
+	return removed
+}
+
+// StartCleanup launches a background goroutine that periodically removes
+// expired cache entries. The goroutine exits when the stop channel is closed.
+// A typical interval is 10*ttl (e.g., 50 minutes for a 5-minute TTL).
+func (c *Cache) StartCleanup(interval time.Duration, stop <-chan struct{}) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				c.CleanExpired()
+			case <-stop:
+				return
+			}
+		}
+	}()
+}
+
 // FormatRateLimitError returns a user-friendly rate limit error message.
 func FormatRateLimitError(source string, wait time.Duration) string {
 	return fmt.Sprintf("rate limited by %s — try again in %s\n\nHint: use --cache to serve from cache, or wait for the rate limit window to reset", source, wait.Round(time.Second))

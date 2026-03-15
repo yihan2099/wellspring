@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	mcpserver "github.com/wellspring-cli/wellspring/mcp"
@@ -29,6 +30,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "Starting Wellspring MCP server...")
 		fmt.Fprintf(os.Stderr, "Registered %d adapters\n", len(rc.Reg.All()))
 	}
+
+	// Start periodic cache cleanup for the long-running server process.
+	stop := make(chan struct{})
+	defer close(stop)
+	rc.Cache.StartCleanup(10*time.Minute, stop)
 
 	srv := mcpserver.NewServer(rc.Reg, Version, rc.Limiter)
 
