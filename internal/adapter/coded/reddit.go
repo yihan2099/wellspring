@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -120,13 +121,17 @@ func (a *RedditAdapter) Fetch(ctx context.Context, params map[string]string) ([]
 	reqURL := fmt.Sprintf("https://www.reddit.com/r/%s/%s.json?limit=%d&raw_json=1",
 		url.PathEscape(subreddit), url.PathEscape(action), limit)
 
-	// Add time filter for "top".
+	// Add time filter for "top" — Reddit only supports the "t" param for
+	// the /top endpoint. For other endpoints (hot, new, rising) the time
+	// filter is ignored by Reddit's API.
 	if action == "top" {
 		t := params["time"]
 		if t == "" {
 			t = "day"
 		}
-		reqURL += "&t=" + t
+		reqURL += "&t=" + url.QueryEscape(t)
+	} else if t := params["time"]; t != "" && t != "day" {
+		fmt.Fprintf(os.Stderr, "warning: --time is only supported for 'top' endpoint, ignoring for %q\n", action)
 	}
 
 	const maxRetries = 3
