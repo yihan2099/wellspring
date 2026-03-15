@@ -102,14 +102,30 @@ func (s *Server) makeHandler(a adapter.Adapter, endpoint string) server.ToolHand
 			"action": endpoint,
 		}
 
-		// Extract all arguments from the request, coercing non-string types
-		// (e.g., JSON numbers like {"limit": 10}) to their string representation.
+		// Extract all arguments from the request, coercing supported scalar
+		// types (string, number, bool) to their string representation.
+		// Complex types (maps, slices) are rejected to prevent unexpected
+		// parameter values like "map[key:value]" from reaching adapters.
 		if args := request.GetArguments(); args != nil {
 			for key, val := range args {
-				if strVal, ok := val.(string); ok {
-					params[key] = strVal
-				} else if val != nil {
-					params[key] = fmt.Sprintf("%v", val)
+				switch v := val.(type) {
+				case string:
+					params[key] = v
+				case float64:
+					// JSON numbers are always float64; use compact formatting
+					// to avoid trailing zeros (e.g., "10" not "10.000000").
+					if v == float64(int64(v)) {
+						params[key] = fmt.Sprintf("%d", int64(v))
+					} else {
+						params[key] = fmt.Sprintf("%g", v)
+					}
+				case bool:
+					params[key] = fmt.Sprintf("%t", v)
+				case nil:
+					// Skip nil values.
+				default:
+					// Skip unsupported complex types (maps, slices) rather
+					// than coercing them to opaque Go fmt output.
 				}
 			}
 		}
