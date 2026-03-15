@@ -163,12 +163,12 @@ func SyncCatalog(reg *Registry, debug bool) error {
 }
 
 // BackgroundSync starts a non-blocking sync in a goroutine.
+// Sync failures are always logged to stderr so users know the catalog
+// may be stale, even outside debug mode.
 func BackgroundSync(reg *Registry, debug bool) {
 	go func() {
 		if err := SyncCatalog(reg, debug); err != nil {
-			if debug {
-				fmt.Fprintf(os.Stderr, "[debug] background sync failed: %v\n", err)
-			}
+			fmt.Fprintf(os.Stderr, "warning: catalog sync failed: %v\n", err)
 		}
 	}()
 }
