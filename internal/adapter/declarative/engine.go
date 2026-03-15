@@ -263,10 +263,11 @@ func (a *DeclarativeAdapter) Fetch(ctx context.Context, params map[string]string
 		}
 	}
 
-	// Build URL with path parameters.
+	// Build URL with path parameters, escaping values to prevent
+	// path traversal or injection via special characters (/, ?, #, etc.).
 	path := ep.Path
 	for k, v := range params {
-		path = strings.ReplaceAll(path, "{"+k+"}", v)
+		path = strings.ReplaceAll(path, "{"+k+"}", url.PathEscape(v))
 	}
 	apiURL := a.def.BaseURL + path
 
@@ -407,7 +408,7 @@ func (a *DeclarativeAdapter) fetchItems(ctx context.Context, raw any, limit int,
 			id = id[:len(id)-2]
 		}
 
-		path := strings.ReplaceAll(itemEp.Path, "{id}", id)
+		path := strings.ReplaceAll(itemEp.Path, "{id}", url.PathEscape(id))
 		itemURL := a.def.BaseURL + path
 
 		req, err := http.NewRequestWithContext(ctx, "GET", itemURL, nil)
