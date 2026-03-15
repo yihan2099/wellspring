@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -140,6 +141,7 @@ func (a *DeclarativeAdapter) Endpoints() []string {
 	for name := range a.def.Endpoints {
 		endpoints = append(endpoints, name)
 	}
+	sort.Strings(endpoints)
 	return endpoints
 }
 
