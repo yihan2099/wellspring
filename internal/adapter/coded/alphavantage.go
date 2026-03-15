@@ -231,7 +231,10 @@ func (a *AlphaVantageAdapter) fetchDaily(ctx context.Context, params map[string]
 
 	points := make([]adapter.DataPoint, 0, len(dates))
 	for _, date := range dates {
-		day := timeSeries[date].(map[string]any)
+		day, ok := timeSeries[date].(map[string]any)
+		if !ok {
+			continue
+		}
 		t, _ := time.Parse("2006-01-02", date)
 
 		dp := adapter.DataPoint{
@@ -303,7 +306,10 @@ func (a *AlphaVantageAdapter) fetchSearch(ctx context.Context, params map[string
 
 	points := make([]adapter.DataPoint, 0, len(matches))
 	for _, m := range matches {
-		match := m.(map[string]any)
+		match, ok := m.(map[string]any)
+		if !ok {
+			continue
+		}
 		dp := adapter.DataPoint{
 			Source:   "alphavantage",
 			Category: "finance",
