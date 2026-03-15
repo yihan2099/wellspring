@@ -77,33 +77,35 @@ func init() {
 
 func runNewsAction(action string) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		a, ok := reg.Get(newsSource)
+		rc := getRunContext()
+
+		a, ok := rc.Reg.Get(newsSource)
 		if !ok {
 			return fmt.Errorf("unknown news source %q\n\nAvailable sources: hackernews, reddit\nRun 'wsp sources --category=news' to see all news sources", newsSource)
 		}
 
 		params := map[string]string{
 			"action":    action,
-			"limit":     fmt.Sprintf("%d", flagLimit),
+			"limit":     fmt.Sprintf("%d", rc.Limit),
 			"subreddit": newsSubreddit,
 			"time":      newsTime,
 		}
 
 		// Check rate limit.
-		if ok, wait := limiter.Allow(a.Name(), a.RateLimit()); !ok {
+		if ok, wait := rc.Limiter.Allow(a.Name(), a.RateLimit()); !ok {
 			return fmt.Errorf("%s", ratelimit.FormatRateLimitError(a.Name(), wait))
 		}
 
 		// Check cache.
-		if points, ok := cache.Get(a.Name(), params); ok {
-			if flagDebug {
+		if points, ok := rc.Cache.Get(a.Name(), params); ok {
+			if rc.Debug {
 				fmt.Fprintln(os.Stderr, "[debug] serving from cache")
 			}
-			output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+			output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 			return nil
 		}
 
-		if flagDebug {
+		if rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] fetching from %s (action=%s)\n", a.Name(), action)
 		}
 
@@ -114,11 +116,11 @@ func runNewsAction(action string) func(cmd *cobra.Command, args []string) error 
 		}
 
 		// Store in cache.
-		if err := cache.Set(a.Name(), params, points); err != nil && flagDebug {
+		if err := rc.Cache.Set(a.Name(), params, points); err != nil && rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] cache write failed: %v\n", err)
 		}
 
-		output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+		output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 		return nil
 	}
 }

@@ -23,14 +23,16 @@ Examples:
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
-	if !flagQuiet {
+	rc := getRunContext()
+
+	if !rc.Quiet {
 		fmt.Fprintln(os.Stderr, "Syncing registry...")
 	}
 
-	err := registry.ForceSync(reg, flagDebug)
+	err := registry.ForceSync(rc.Reg, rc.Debug)
 	if err != nil {
 		// Not fatal — we can still use built-in sources.
-		if !flagQuiet {
+		if !rc.Quiet {
 			fmt.Fprintf(os.Stderr, "Warning: registry sync failed: %v\n", err)
 			fmt.Fprintln(os.Stderr, "Using built-in sources.")
 		}
@@ -38,13 +40,13 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if !flagQuiet {
+	if !rc.Quiet {
 		fmt.Fprintln(os.Stderr, "Registry updated successfully.")
 	}
 
 	// Clear response cache on update.
-	cache.Clear()
-	if !flagQuiet {
+	rc.Cache.Clear()
+	if !rc.Quiet {
 		fmt.Fprintln(os.Stderr, "Response cache cleared.")
 	}
 

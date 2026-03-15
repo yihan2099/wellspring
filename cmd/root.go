@@ -22,7 +22,7 @@ var (
 	// Version is set at build time.
 	Version = "0.1.0-dev"
 
-	// Global flags.
+	// Global flags — parsed by Cobra, read by RunContext.
 	flagJSON    bool
 	flagPlain   bool
 	flagQuiet   bool
@@ -33,12 +33,57 @@ var (
 	flagConfig  string
 	flagDebug   bool
 
-	// Global state.
+	// Global state — initialized once, then accessed via runCtx.
 	reg     *registry.Registry
 	limiter *ratelimit.Limiter
 	cache   *ratelimit.Cache
 	cfg     *config.Config
 )
+
+// RunContext encapsulates per-command state (flags + initialized globals)
+// so that command handlers do not reference package-level mutable variables
+// directly. This makes it safe to test commands concurrently and simplifies
+// future extraction of commands into separate packages.
+type RunContext struct {
+	JSON    bool
+	Plain   bool
+	Quiet   bool
+	NoColor bool
+	Limit   int
+	Debug   bool
+	Offline bool
+
+	Reg     *registry.Registry
+	Limiter *ratelimit.Limiter
+	Cache   *ratelimit.Cache
+	Cfg     *config.Config
+}
+
+// runCtx is the singleton RunContext built after flags are parsed.
+var runCtx *RunContext
+
+// getRunContext returns the current RunContext, building it from globals on
+// first access. Command handlers should call this instead of reading the
+// package-level flag* and global state variables directly.
+func getRunContext() *RunContext {
+	if runCtx != nil {
+		return runCtx
+	}
+	runCtx = &RunContext{
+		JSON:    flagJSON,
+		Plain:   flagPlain,
+		Quiet:   flagQuiet,
+		NoColor: flagNoColor,
+		Limit:   flagLimit,
+		Debug:   flagDebug,
+		Offline: flagOffline,
+		Reg:     reg,
+		Limiter: limiter,
+		Cache:   cache,
+		Cfg:     cfg,
+	}
+	return runCtx
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "wsp",
@@ -74,6 +119,9 @@ Environment variables:
 		// Initialize global state after flags are parsed so --cache, --offline,
 		// and --debug take effect during initialization.
 		initOnce.Do(initGlobals)
+		// Rebuild RunContext so command handlers see current flag values.
+		runCtx = nil
+		_ = getRunContext()
 		return nil
 	},
 	// RunE is explicitly set to show help when no subcommand is given.
@@ -115,6 +163,8 @@ var initOnce sync.Once
 func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
+		// RunContext may not be initialized if the error occurred during
+		// flag parsing, so fall back to the raw flag variables.
 		if flagJSON {
 			output.RenderJSONError(os.Stdout, "", err)
 		} else if !flagQuiet {
@@ -197,10 +247,11 @@ func loadBuiltInSources() {
 
 // getOutputFormat determines the output format based on flags and TTY detection.
 func getOutputFormat() output.Format {
-	if flagJSON {
+	rc := getRunContext()
+	if rc.JSON {
 		return output.FormatJSON
 	}
-	if flagPlain {
+	if rc.Plain {
 		return output.FormatPlain
 	}
 	return output.AutoDetectFormat()

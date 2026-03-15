@@ -58,15 +58,17 @@ func init() {
 
 func runCryptoAction(action string) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		a, ok := reg.Get("coingecko")
+		rc := getRunContext()
+
+		a, ok := rc.Reg.Get("coingecko")
 		if !ok {
 			return fmt.Errorf("CoinGecko adapter not found — this is a bug, please report it")
 		}
 
 		params := map[string]string{
 			"action":   action,
-			"limit":    fmt.Sprintf("%d", flagLimit),
-			"per_page": fmt.Sprintf("%d", flagLimit),
+			"limit":    fmt.Sprintf("%d", rc.Limit),
+			"per_page": fmt.Sprintf("%d", rc.Limit),
 		}
 
 		if cryptoCoin != "" {
@@ -74,20 +76,20 @@ func runCryptoAction(action string) func(cmd *cobra.Command, args []string) erro
 		}
 
 		// Check rate limit.
-		if ok, wait := limiter.Allow(a.Name(), a.RateLimit()); !ok {
+		if ok, wait := rc.Limiter.Allow(a.Name(), a.RateLimit()); !ok {
 			return fmt.Errorf("%s", ratelimit.FormatRateLimitError(a.Name(), wait))
 		}
 
 		// Check cache.
-		if points, ok := cache.Get(a.Name(), params); ok {
-			if flagDebug {
+		if points, ok := rc.Cache.Get(a.Name(), params); ok {
+			if rc.Debug {
 				fmt.Fprintln(os.Stderr, "[debug] serving from cache")
 			}
-			output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+			output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 			return nil
 		}
 
-		if flagDebug {
+		if rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] fetching from coingecko (action=%s)\n", action)
 		}
 
@@ -97,10 +99,10 @@ func runCryptoAction(action string) func(cmd *cobra.Command, args []string) erro
 			return err
 		}
 
-		if err := cache.Set(a.Name(), params, points); err != nil && flagDebug {
+		if err := rc.Cache.Set(a.Name(), params, points); err != nil && rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] cache write failed: %v\n", err)
 		}
-		output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+		output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 		return nil
 	}
 }

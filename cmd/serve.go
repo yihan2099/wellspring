@@ -23,14 +23,16 @@ Examples:
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
-	if !flagQuiet {
+	rc := getRunContext()
+
+	if !rc.Quiet {
 		fmt.Fprintln(os.Stderr, "Starting Wellspring MCP server...")
-		fmt.Fprintf(os.Stderr, "Registered %d adapters\n", len(reg.All()))
+		fmt.Fprintf(os.Stderr, "Registered %d adapters\n", len(rc.Reg.All()))
 	}
 
-	srv := mcpserver.NewServer(reg, Version, limiter)
+	srv := mcpserver.NewServer(rc.Reg, Version, rc.Limiter)
 
-	if flagDebug {
+	if rc.Debug {
 		fmt.Fprintln(os.Stderr, "[debug] MCP server listening on stdio")
 	}
 

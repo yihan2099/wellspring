@@ -103,7 +103,9 @@ func weatherCodeToDescription(code float64) string {
 
 func runWeatherAction(action string) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		lat, lon, err := resolveLocation()
+		rc := getRunContext()
+
+		lat, lon, err := resolveLocation(rc)
 		if err != nil {
 			return err
 		}
@@ -123,7 +125,7 @@ func runWeatherAction(action string) func(cmd *cobra.Command, args []string) err
 			)
 		}
 
-		if flagDebug {
+		if rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] fetching weather from %s\n", url)
 		}
 
@@ -163,7 +165,7 @@ func runWeatherAction(action string) func(cmd *cobra.Command, args []string) err
 			points = parseWeatherCurrent(result, lat, lon)
 		}
 
-		output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+		output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 		return nil
 	}
 }
@@ -243,7 +245,7 @@ func parseWeatherCurrent(result map[string]any, lat, lon string) []adapter.DataP
 	return []adapter.DataPoint{dp}
 }
 
-func resolveLocation() (lat, lon string, err error) {
+func resolveLocation(rc *RunContext) (lat, lon string, err error) {
 	// If explicit lat/lon provided, use them.
 	if weatherLat != "" && weatherLon != "" {
 		return weatherLat, weatherLon, nil
@@ -251,14 +253,14 @@ func resolveLocation() (lat, lon string, err error) {
 
 	// If location name provided, geocode it.
 	if weatherLocation != "" {
-		return geocode(weatherLocation)
+		return geocode(rc, weatherLocation)
 	}
 
 	// Default: New York.
 	return "40.7128", "-74.0060", nil
 }
 
-func geocode(location string) (lat, lon string, err error) {
+func geocode(rc *RunContext, location string) (lat, lon string, err error) {
 	url := fmt.Sprintf("https://geocoding-api.open-meteo.com/v1/search?name=%s&count=1&language=en&format=json",
 		strings.ReplaceAll(location, " ", "+"))
 
@@ -288,7 +290,7 @@ func geocode(location string) (lat, lon string, err error) {
 	}
 
 	r := result.Results[0]
-	if flagDebug {
+	if rc.Debug {
 		fmt.Fprintf(os.Stderr, "[debug] geocoded %q → %s, %s (%.4f, %.4f)\n",
 			location, r.Name, r.Country, r.Latitude, r.Longitude)
 	}

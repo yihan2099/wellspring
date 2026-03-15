@@ -102,15 +102,17 @@ func init() {
 
 func runGovIndicator(indicator, label string) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		rc := getRunContext()
+
 		country := govCountry
 		if country == "" {
 			country = "US"
 		}
 
 		url := fmt.Sprintf("https://api.worldbank.org/v2/country/%s/indicator/%s?format=json&per_page=%d&date=2015:2024",
-			country, indicator, flagLimit)
+			country, indicator, rc.Limit)
 
-		if flagDebug {
+		if rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] fetching from World Bank: %s\n", url)
 		}
 
@@ -173,13 +175,15 @@ func runGovIndicator(indicator, label string) func(cmd *cobra.Command, args []st
 			points = append(points, dp)
 		}
 
-		output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+		output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 		return nil
 	}
 }
 
 func runGovCountries(cmd *cobra.Command, args []string) error {
-	url := fmt.Sprintf("https://api.worldbank.org/v2/country?format=json&per_page=%d", flagLimit)
+	rc := getRunContext()
+
+	url := fmt.Sprintf("https://api.worldbank.org/v2/country?format=json&per_page=%d", rc.Limit)
 
 	ctx := cmd.Context()
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -245,7 +249,7 @@ func runGovCountries(cmd *cobra.Command, args []string) error {
 		points = append(points, dp)
 	}
 
-	output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+	output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 	return nil
 }
 

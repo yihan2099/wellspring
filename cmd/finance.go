@@ -74,38 +74,40 @@ func init() {
 
 func runFinanceAction(action string) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		a, ok := reg.Get("alphavantage")
+		rc := getRunContext()
+
+		a, ok := rc.Reg.Get("alphavantage")
 		if !ok {
 			return fmt.Errorf("Alpha Vantage adapter not found — this is a bug, please report it")
 		}
 
 		params := map[string]string{
 			"action": action,
-			"limit":  fmt.Sprintf("%d", flagLimit),
+			"limit":  fmt.Sprintf("%d", rc.Limit),
 			"symbol": financeSymbol,
 			"query":  financeQuery,
 		}
 
 		// Pass API key from config if available.
-		if key := cfg.GetAPIKey("ALPHA_VANTAGE"); key != "" {
+		if key := rc.Cfg.GetAPIKey("ALPHA_VANTAGE"); key != "" {
 			params["api_key"] = key
 		}
 
 		// Check rate limit.
-		if ok, wait := limiter.Allow(a.Name(), a.RateLimit()); !ok {
+		if ok, wait := rc.Limiter.Allow(a.Name(), a.RateLimit()); !ok {
 			return fmt.Errorf("%s", ratelimit.FormatRateLimitError(a.Name(), wait))
 		}
 
 		// Check cache.
-		if points, ok := cache.Get(a.Name(), params); ok {
-			if flagDebug {
+		if points, ok := rc.Cache.Get(a.Name(), params); ok {
+			if rc.Debug {
 				fmt.Fprintln(os.Stderr, "[debug] serving from cache")
 			}
-			output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+			output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 			return nil
 		}
 
-		if flagDebug {
+		if rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] fetching from alphavantage (action=%s, symbol=%s)\n", action, financeSymbol)
 		}
 
@@ -115,10 +117,10 @@ func runFinanceAction(action string) func(cmd *cobra.Command, args []string) err
 			return err
 		}
 
-		if err := cache.Set(a.Name(), params, points); err != nil && flagDebug {
+		if err := rc.Cache.Set(a.Name(), params, points); err != nil && rc.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] cache write failed: %v\n", err)
 		}
-		output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
+		output.Render(os.Stdout, points, getOutputFormat(), rc.NoColor)
 		return nil
 	}
 }

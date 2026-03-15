@@ -42,6 +42,8 @@ func init() {
 }
 
 func runSources(cmd *cobra.Command, args []string) error {
+	rc := getRunContext()
+
 	filter := registry.SourceFilter{
 		Category: sourcesCategory,
 		Auth:     sourcesAuth,
@@ -52,15 +54,15 @@ func runSources(cmd *cobra.Command, args []string) error {
 		filter.Supported = &t
 	}
 
-	sources := reg.Sources(filter)
+	sources := rc.Reg.Sources(filter)
 
 	// Health check mode.
 	if sourcesCheck {
-		return runHealthCheck(sources)
+		return runHealthCheck(rc, sources)
 	}
 
 	// JSON output.
-	if flagJSON {
+	if rc.JSON {
 		output.RenderJSONRaw(os.Stdout, map[string]any{
 			"ok":      true,
 			"count":   len(sources),
@@ -74,8 +76,8 @@ func runSources(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runHealthCheck(sources []registry.SourceInfo) error {
-	if !flagQuiet {
+func runHealthCheck(rc *RunContext, sources []registry.SourceInfo) error {
+	if !rc.Quiet {
 		fmt.Fprintln(os.Stderr, "Checking supported source endpoints...")
 	}
 
@@ -94,7 +96,7 @@ func runHealthCheck(sources []registry.SourceInfo) error {
 			continue
 		}
 
-		a, ok := reg.Get(s.Name)
+		a, ok := rc.Reg.Get(s.Name)
 		if !ok {
 			continue
 		}
@@ -129,7 +131,7 @@ func runHealthCheck(sources []registry.SourceInfo) error {
 
 		results = append(results, result)
 
-		if !flagQuiet && !flagJSON {
+		if !rc.Quiet && !rc.JSON {
 			marker := "✓"
 			if result.Status == "error" {
 				marker = "✗"
@@ -140,7 +142,7 @@ func runHealthCheck(sources []registry.SourceInfo) error {
 		}
 	}
 
-	if flagJSON {
+	if rc.JSON {
 		output.RenderJSONRaw(os.Stdout, map[string]any{
 			"ok":      true,
 			"checks":  results,
