@@ -8,7 +8,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/wellspring-cli/wellspring/internal/adapter"
-	"github.com/wellspring-cli/wellspring/internal/adapter/declarative"
 	"github.com/wellspring-cli/wellspring/internal/ratelimit"
 	"github.com/wellspring-cli/wellspring/internal/registry"
 )
@@ -47,41 +46,7 @@ func (s *Server) registerTools() {
 			ep := endpoint // capture for closure
 			toolName := fmt.Sprintf("%s_%s", adp.Name(), ep)
 
-			var tool mcp.Tool
-
-			// Coded adapters use hardcoded parameter definitions.
-			switch adp.Name() {
-			case "reddit":
-				tool = mcp.NewTool(
-					toolName,
-					mcp.WithDescription(fmt.Sprintf("Reddit — %s posts from a subreddit", ep)),
-					mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
-					mcp.WithString("subreddit", mcp.Description("Subreddit name"), mcp.DefaultString("technology")),
-					mcp.WithString("time", mcp.Description("Time filter (hour, day, week, month, year, all)"), mcp.DefaultString("day")),
-				)
-			case "alphavantage":
-				if ep == "search" {
-					tool = mcp.NewTool(
-						toolName,
-						mcp.WithDescription("Alpha Vantage — search for stock symbols"),
-						mcp.WithString("query", mcp.Description("Search query (company name or partial symbol)"), mcp.Required()),
-						mcp.WithString("symbol", mcp.Description("Alias for query (stock ticker symbol)")),
-						mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
-					)
-				} else {
-					tool = mcp.NewTool(
-						toolName,
-						mcp.WithDescription(fmt.Sprintf("Alpha Vantage — %s", ep)),
-						mcp.WithString("symbol", mcp.Description("Stock ticker symbol"), mcp.Required()),
-						mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
-					)
-				}
-			default:
-				// For declarative adapters, auto-generate tool parameters from the
-				// YAML endpoint definition (query params + path template params).
-				tool = s.buildDeclarativeTool(toolName, adp, ep)
-			}
-
+			tool := s.buildTool(toolName, adp, ep)
 			handler := s.makeHandler(adp, ep)
 			s.server.AddTool(tool, handler)
 		}
@@ -98,29 +63,26 @@ func (s *Server) registerTools() {
 	s.server.AddTool(sourcesTool, s.handleListSources)
 }
 
-// buildDeclarativeTool generates an MCP tool definition from a declarative adapter's
-// YAML endpoint params and path template parameters.
-func (s *Server) buildDeclarativeTool(toolName string, adp adapter.Adapter, ep string) mcp.Tool {
+// buildTool generates an MCP tool definition from any adapter's ToolParams.
+// All adapters (coded and declarative) self-describe their parameters via the
+// Adapter.ToolParams interface, eliminating the need for adapter-specific switch cases.
+func (s *Server) buildTool(toolName string, adp adapter.Adapter, ep string) mcp.Tool {
+	desc := fmt.Sprintf("%s — %s: %s", adp.Category(), adp.Name(), ep)
 	opts := []mcp.ToolOption{
-		mcp.WithDescription(fmt.Sprintf("%s — %s: %s", adp.Category(), adp.Name(), ep)),
-		mcp.WithString("limit", mcp.Description("Maximum number of results"), mcp.DefaultString("10")),
+		mcp.WithDescription(desc),
 	}
 
-	if da, ok := adp.(*declarative.DeclarativeAdapter); ok {
-		// Expose YAML-declared query params with their defaults.
-		if params := da.EndpointParams(ep); params != nil {
-			for k, v := range params {
-				opts = append(opts, mcp.WithString(k, mcp.Description(k+" parameter"), mcp.DefaultString(v)))
-			}
+	for _, p := range adp.ToolParams(ep) {
+		paramOpts := []mcp.PropertyOption{
+			mcp.Description(p.Description),
 		}
-		// Expose path template params (e.g., {country}, {id}).
-		for _, p := range da.EndpointPathParams(ep) {
-			// Skip "id" — internal resolution param, not user-facing.
-			if p == "id" {
-				continue
-			}
-			opts = append(opts, mcp.WithString(p, mcp.Description(p+" parameter")))
+		if p.Required {
+			paramOpts = append(paramOpts, mcp.Required())
 		}
+		if p.Default != "" {
+			paramOpts = append(paramOpts, mcp.DefaultString(p.Default))
+		}
+		opts = append(opts, mcp.WithString(p.Name, paramOpts...))
 	}
 
 	return mcp.NewTool(toolName, opts...)

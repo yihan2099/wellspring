@@ -48,6 +48,22 @@ func (a *AlphaVantageAdapter) RateLimit() adapter.RateLimitConfig {
 	}
 }
 
+func (a *AlphaVantageAdapter) ToolParams(endpoint string) []adapter.ToolParam {
+	switch endpoint {
+	case "search":
+		return []adapter.ToolParam{
+			{Name: "query", Description: "Search query (company name or partial symbol)", Required: true},
+			{Name: "symbol", Description: "Alias for query (stock ticker symbol)"},
+			{Name: "limit", Description: "Maximum number of results", Default: "10"},
+		}
+	default: // quote, daily
+		return []adapter.ToolParam{
+			{Name: "symbol", Description: "Stock ticker symbol", Required: true},
+			{Name: "limit", Description: "Maximum number of results", Default: "10"},
+		}
+	}
+}
+
 func (a *AlphaVantageAdapter) getAPIKey(params map[string]string) string {
 	if key, ok := params["api_key"]; ok && key != "" {
 		return key

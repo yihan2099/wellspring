@@ -178,6 +178,35 @@ func (a *DeclarativeAdapter) EndpointPathParams(endpoint string) []string {
 	return params
 }
 
+// ToolParams returns MCP tool parameter definitions derived from the YAML
+// endpoint definition (query params + path template params).
+func (a *DeclarativeAdapter) ToolParams(endpoint string) []adapter.ToolParam {
+	params := []adapter.ToolParam{
+		{Name: "limit", Description: "Maximum number of results", Default: "10"},
+	}
+
+	// Add YAML-declared query params with their defaults.
+	if ep, ok := a.def.Endpoints[endpoint]; ok {
+		for k, v := range ep.Params {
+			params = append(params, adapter.ToolParam{
+				Name: k, Description: k + " parameter", Default: v,
+			})
+		}
+	}
+
+	// Add path template params (e.g., {country}, {id}).
+	for _, p := range a.EndpointPathParams(endpoint) {
+		if p == "id" {
+			continue // internal resolution param
+		}
+		params = append(params, adapter.ToolParam{
+			Name: p, Description: p + " parameter",
+		})
+	}
+
+	return params
+}
+
 func (a *DeclarativeAdapter) RateLimit() adapter.RateLimitConfig {
 	dur := time.Minute // default
 	if a.def.RateLimitDef.Per != "" {

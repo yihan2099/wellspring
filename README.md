@@ -156,7 +156,24 @@ wsp sources --check                       # Health-check endpoints
 wsp serve                                 # Start MCP server (stdio)
 ```
 
-Exposes all adapters as MCP tools for AI agents.
+Exposes all adapters as MCP tools for AI agents. Each adapter endpoint becomes a callable tool with self-described parameters.
+
+#### Claude Desktop / Claude Code
+
+Add to your MCP config (`~/.claude.json` or Claude Desktop settings):
+
+```json
+{
+  "mcpServers": {
+    "wellspring": {
+      "command": "wsp",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+Then ask Claude to "get the top Hacker News stories" or "look up AAPL stock price" — it will use Wellspring's MCP tools automatically.
 
 ## Configuration
 

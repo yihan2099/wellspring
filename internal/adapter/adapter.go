@@ -53,6 +53,14 @@ type DataPoint struct {
 	URL     string         `json:"url,omitempty"`
 }
 
+// ToolParam describes a single MCP tool parameter for a given endpoint.
+type ToolParam struct {
+	Name        string // parameter name
+	Description string // human-readable description
+	Required    bool   // whether the parameter is required
+	Default     string // default value (empty if none)
+}
+
 // Adapter is the interface that all data source adapters must implement.
 type Adapter interface {
 	// Name returns the adapter's unique name (e.g., "hackernews").
@@ -75,4 +83,9 @@ type Adapter interface {
 
 	// Description returns a human-readable description of the adapter.
 	Description() string
+
+	// ToolParams returns MCP tool parameter definitions for a given endpoint.
+	// Each adapter self-describes its parameters so the MCP server can
+	// register tools without hardcoded switch statements.
+	ToolParams(endpoint string) []ToolParam
 }

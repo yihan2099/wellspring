@@ -18,6 +18,8 @@ Two-tier adapter system:
 
 Both implement the `Adapter` interface → produce normalized `DataPoint` output.
 
+All adapters implement `ToolParams(endpoint string) []ToolParam` to self-describe their MCP tool parameters, enabling the MCP server to register tools uniformly without adapter-specific switch statements.
+
 ## Repository Structure
 
 ```

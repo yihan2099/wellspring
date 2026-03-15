@@ -27,6 +27,9 @@ func (m *mockAdapter) RateLimit() adapter.RateLimitConfig {
 func (m *mockAdapter) Fetch(ctx context.Context, params map[string]string) ([]adapter.DataPoint, error) {
 	return nil, nil
 }
+func (m *mockAdapter) ToolParams(endpoint string) []adapter.ToolParam {
+	return []adapter.ToolParam{{Name: "limit", Description: "Max results", Default: "10"}}
+}
 
 func TestRegistryRegisterAndGet(t *testing.T) {
 	reg := registry.NewRegistry()

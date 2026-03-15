@@ -42,6 +42,19 @@ func (a *RedditAdapter) RateLimit() adapter.RateLimitConfig {
 	}
 }
 
+func (a *RedditAdapter) ToolParams(endpoint string) []adapter.ToolParam {
+	params := []adapter.ToolParam{
+		{Name: "limit", Description: "Maximum number of results", Default: "10"},
+		{Name: "subreddit", Description: "Subreddit name", Default: "technology"},
+	}
+	if endpoint == "top" {
+		params = append(params, adapter.ToolParam{
+			Name: "time", Description: "Time filter (hour, day, week, month, year, all)", Default: "day",
+		})
+	}
+	return params
+}
+
 // redditListing represents the Reddit API listing response.
 type redditListing struct {
 	Data struct {
