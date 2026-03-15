@@ -374,6 +374,7 @@ func (a *DeclarativeAdapter) fetchItems(ctx context.Context, raw any, limit int,
 	}
 
 	points := make([]adapter.DataPoint, 0, len(arr))
+	var failures int
 	for _, idRaw := range arr {
 		id := fmt.Sprintf("%v", idRaw)
 		// Remove ".0" suffix from float IDs (JSON numbers).
@@ -386,32 +387,40 @@ func (a *DeclarativeAdapter) fetchItems(ctx context.Context, raw any, limit int,
 		}
 
 		path := strings.ReplaceAll(itemEp.Path, "{id}", id)
-		url := a.def.BaseURL + path
+		itemURL := a.def.BaseURL + path
 
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", itemURL, nil)
 		if err != nil {
+			failures++
 			continue
 		}
 		req.Header.Set("User-Agent", "wellspring-cli/0.1")
 
 		resp, err := a.client.Do(req)
 		if err != nil {
+			failures++
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil || resp.StatusCode != http.StatusOK {
+			failures++
 			continue
 		}
 
 		var obj map[string]any
 		if err := json.Unmarshal(body, &obj); err != nil {
+			failures++
 			continue
 		}
 
 		dp := a.mapObject(obj)
 		points = append(points, dp)
+	}
+
+	if failures > 0 {
+		fmt.Fprintf(os.Stderr, "warning: %s: %d/%d item fetches failed\n", a.def.Name, failures, len(arr))
 	}
 
 	return points, nil
