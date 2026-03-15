@@ -131,7 +131,8 @@ func (c *Cache) Get(source string, params map[string]string) ([]adapter.DataPoin
 }
 
 // Set stores a response in the cache.
-func (c *Cache) Set(source string, params map[string]string, points []adapter.DataPoint) {
+// Returns an error if the cache entry could not be written.
+func (c *Cache) Set(source string, params map[string]string, points []adapter.DataPoint) error {
 	key := cacheKey(source, params)
 	path := filepath.Join(c.dir, key+".json")
 
@@ -143,11 +144,16 @@ func (c *Cache) Set(source string, params map[string]string, points []adapter.Da
 
 	data, err := json.Marshal(entry)
 	if err != nil {
-		return
+		return fmt.Errorf("cache: marshaling entry for %s: %w", source, err)
 	}
 
-	os.MkdirAll(c.dir, 0o755)
-	os.WriteFile(path, data, 0o644)
+	if err := os.MkdirAll(c.dir, 0o755); err != nil {
+		return fmt.Errorf("cache: creating directory: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("cache: writing entry for %s: %w", source, err)
+	}
+	return nil
 }
 
 // Clear removes all cached responses.

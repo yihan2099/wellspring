@@ -114,7 +114,9 @@ func runNewsAction(action string) func(cmd *cobra.Command, args []string) error 
 		}
 
 		// Store in cache.
-		cache.Set(a.Name(), params, points)
+		if err := cache.Set(a.Name(), params, points); err != nil && flagDebug {
+			fmt.Fprintf(os.Stderr, "[debug] cache write failed: %v\n", err)
+		}
 
 		output.Render(os.Stdout, points, getOutputFormat(), flagNoColor)
 		return nil
