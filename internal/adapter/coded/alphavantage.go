@@ -334,6 +334,13 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, baseURL string, api
 	q.Set("apikey", apiKey)
 	u.RawQuery = q.Encode()
 
+	// maskErr wraps both the apikey= pattern masking and literal key replacement
+	// to ensure the API key never appears in any returned error, regardless of
+	// how the underlying HTTP library formats it.
+	maskErr := func(err error) error {
+		return maskAPIKey(fmt.Errorf("%s", maskAPIKeyInString(err.Error(), apiKey)))
+	}
+
 	const maxRetries = 3
 	var lastErr error
 
@@ -350,14 +357,14 @@ func (a *AlphaVantageAdapter) doRequest(ctx context.Context, baseURL string, api
 
 		req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 		if err != nil {
-			return nil, fmt.Errorf("building request: %w", err)
+			return nil, fmt.Errorf("building request: %w", maskErr(err))
 		}
 		req.Header.Set("User-Agent", "wellspring-cli/0.1")
 
 		resp, err := a.client.Do(req)
 		if err != nil {
 			// Mask API key in error messages to avoid leaking credentials.
-			lastErr = fmt.Errorf("API request failed: %w", maskAPIKey(err))
+			lastErr = fmt.Errorf("API request failed: %w", maskErr(err))
 			continue
 		}
 
