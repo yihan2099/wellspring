@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -107,6 +108,38 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 		return nil, adapter.NewInvalidInputError("--symbol is required for stock quotes\n\nExample: wsp finance quote --symbol=AAPL")
 	}
 
+	// Support comma-separated symbols for batch lookups (e.g., "AAPL,MSFT,GOOGL").
+	// Each symbol is fetched sequentially since Alpha Vantage has no batch endpoint.
+	symbols := strings.Split(symbol, ",")
+	var allPoints []adapter.DataPoint
+
+	for _, sym := range symbols {
+		sym = strings.TrimSpace(sym)
+		if sym == "" {
+			continue
+		}
+
+		dp, err := a.fetchSingleQuote(ctx, sym, apiKey)
+		if err != nil {
+			// For batch lookups, collect what we can and report failures.
+			if len(symbols) > 1 {
+				fmt.Fprintf(os.Stderr, "warning: failed to fetch quote for %s: %v\n", sym, err)
+				continue
+			}
+			return nil, err
+		}
+		allPoints = append(allPoints, dp)
+	}
+
+	if len(allPoints) == 0 {
+		return nil, fmt.Errorf("no quotes retrieved for symbols: %s", symbol)
+	}
+
+	return allPoints, nil
+}
+
+// fetchSingleQuote fetches a quote for a single symbol.
+func (a *AlphaVantageAdapter) fetchSingleQuote(ctx context.Context, symbol string, apiKey string) (adapter.DataPoint, error) {
 	params_ := url.Values{}
 	params_.Set("function", "GLOBAL_QUOTE")
 	params_.Set("symbol", strings.ToUpper(symbol))
@@ -114,21 +147,21 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 
 	body, err := a.doRequest(ctx, reqURL, apiKey)
 	if err != nil {
-		return nil, err
+		return adapter.DataPoint{}, err
 	}
 
 	var result map[string]any
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return adapter.DataPoint{}, fmt.Errorf("parsing response: %w", err)
 	}
 
 	if err := checkAVError(result); err != nil {
-		return nil, err
+		return adapter.DataPoint{}, err
 	}
 
 	quote, ok := result["Global Quote"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected response format from Alpha Vantage")
+		return adapter.DataPoint{}, fmt.Errorf("unexpected response format from Alpha Vantage")
 	}
 
 	// Track missing fields — a zero price is indistinguishable from a missing
@@ -159,17 +192,15 @@ func (a *AlphaVantageAdapter) fetchQuote(ctx context.Context, params map[string]
 		meta["_missing_fields"] = missing
 	}
 
-	dp := adapter.DataPoint{
+	return adapter.DataPoint{
 		Source:   "alphavantage",
 		Category: "finance",
 		Title:   strings.ToUpper(symbol),
 		Value:   price,
 		Time:    time.Now(),
-		URL:     fmt.Sprintf("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=%s", symbol),
+		URL:     fmt.Sprintf("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=%s", url.QueryEscape(symbol)),
 		Meta:    meta,
-	}
-
-	return []adapter.DataPoint{dp}, nil
+	}, nil
 }
 
 func (a *AlphaVantageAdapter) fetchDaily(ctx context.Context, params map[string]string, apiKey string) ([]adapter.DataPoint, error) {
