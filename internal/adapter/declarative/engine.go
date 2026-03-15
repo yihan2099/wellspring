@@ -181,8 +181,20 @@ func (a *DeclarativeAdapter) EndpointPathParams(endpoint string) []string {
 // ToolParams returns MCP tool parameter definitions derived from the YAML
 // endpoint definition (query params + path template params).
 func (a *DeclarativeAdapter) ToolParams(endpoint string) []adapter.ToolParam {
-	params := []adapter.ToolParam{
-		{Name: "limit", Description: "Maximum number of results", Default: "10"},
+	// Check if the YAML endpoint already declares a "limit" param to avoid
+	// registering a duplicate with a conflicting default.
+	hasLimit := false
+	if ep, ok := a.def.Endpoints[endpoint]; ok {
+		if _, exists := ep.Params["limit"]; exists {
+			hasLimit = true
+		}
+	}
+
+	var params []adapter.ToolParam
+	if !hasLimit {
+		params = append(params, adapter.ToolParam{
+			Name: "limit", Description: "Maximum number of results", Default: "10",
+		})
 	}
 
 	// Add YAML-declared query params with their defaults.
