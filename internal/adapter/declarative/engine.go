@@ -389,13 +389,22 @@ func (a *DeclarativeAdapter) fetchItems(ctx context.Context, raw any, limit int,
 	var failures int
 	for _, idRaw := range arr {
 		id := fmt.Sprintf("%v", idRaw)
-		// Remove ".0" suffix from float IDs (JSON numbers).
-		if strings.HasSuffix(id, ".0") {
-			id = id[:len(id)-2]
-		}
-		// Handle float64 IDs.
+		// Handle float64 IDs (JSON numbers are decoded as float64).
+		// Validate that the float-to-int conversion is lossless to catch
+		// IDs that exceed int64 precision (~2^53 for float64).
 		if f, ok := idRaw.(float64); ok {
-			id = strconv.FormatInt(int64(f), 10)
+			n := int64(f)
+			if float64(n) != f {
+				// Fractional or out-of-range ID — use the string representation
+				// with the ".0" suffix stripped as a best-effort fallback.
+				if strings.HasSuffix(id, ".0") {
+					id = id[:len(id)-2]
+				}
+			} else {
+				id = strconv.FormatInt(n, 10)
+			}
+		} else if strings.HasSuffix(id, ".0") {
+			id = id[:len(id)-2]
 		}
 
 		path := strings.ReplaceAll(itemEp.Path, "{id}", id)
