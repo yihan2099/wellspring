@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -23,15 +24,16 @@ var (
 	Version = "0.1.0-dev"
 
 	// Global flags — parsed by Cobra, read by RunContext.
-	flagJSON    bool
-	flagPlain   bool
-	flagQuiet   bool
-	flagNoColor bool
-	flagLimit   int
-	flagCache   string
-	flagOffline bool
-	flagConfig  string
-	flagDebug   bool
+	flagJSON     bool
+	flagPlain    bool
+	flagQuiet    bool
+	flagNoColor  bool
+	flagLimit    int
+	flagCache    string
+	flagOffline  bool
+	flagConfig   string
+	flagDebug    bool
+	flagDebugLog string
 
 	// Global state — initialized once, then accessed via runCtx.
 	reg     *registry.Registry
@@ -142,6 +144,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&flagOffline, "offline", false, "Skip registry sync, use built-in/cached sources only")
 	rootCmd.PersistentFlags().StringVar(&flagConfig, "config", "", "Path to config file")
 	rootCmd.PersistentFlags().BoolVar(&flagDebug, "debug", false, "Show request/response details on stderr")
+	rootCmd.PersistentFlags().StringVar(&flagDebugLog, "debug-log", "", "Write debug output to file (implies --debug)")
 
 	rootCmd.Version = Version
 	rootCmd.SetVersionTemplate("wsp version {{.Version}}\n")
@@ -177,6 +180,36 @@ func Execute() error {
 func initGlobals() {
 	// Load config.
 	cfg = config.DefaultConfig()
+
+	// Handle --debug-log: open file, tee debug output to both file and stderr.
+	if flagDebugLog != "" {
+		flagDebug = true
+		f, err := os.OpenFile(flagDebugLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not open debug log %s: %v\n", flagDebugLog, err)
+		} else {
+			// Replace stderr with a multi-writer so all fmt.Fprintf(os.Stderr, ...)
+			// calls (including [debug] lines) write to both destinations.
+			multiW := io.MultiWriter(os.Stderr, f)
+			// Create a pipe-backed file that writes to the multi-writer.
+			r, w, err := os.Pipe()
+			if err == nil {
+				os.Stderr = w
+				go func() {
+					buf := make([]byte, 4096)
+					for {
+						n, err := r.Read(buf)
+						if n > 0 {
+							multiW.Write(buf[:n])
+						}
+						if err != nil {
+							break
+						}
+					}
+				}()
+			}
+		}
+	}
 
 	// Check NO_COLOR env var.
 	if os.Getenv("NO_COLOR") != "" {
