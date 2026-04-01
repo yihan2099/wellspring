@@ -1,0 +1,321 @@
+package cmd
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/spf13/cobra"
+	"github.com/wellspring-cli/wellspring/internal/adapter"
+	"github.com/wellspring-cli/wellspring/internal/adapter/coded"
+	"github.com/wellspring-cli/wellspring/internal/adapter/declarative"
+	"github.com/wellspring-cli/wellspring/internal/config"
+	"github.com/wellspring-cli/wellspring/internal/output"
+	"github.com/wellspring-cli/wellspring/internal/ratelimit"
+	"github.com/wellspring-cli/wellspring/internal/registry"
+)
+
+var (
+	// Version is set at build time.
+	Version = "0.1.0-dev"
+
+	// Global flags — parsed by Cobra, read by RunContext.
+	flagJSON     bool
+	flagPlain    bool
+	flagQuiet    bool
+	flagNoColor  bool
+	flagLimit    int
+	flagCache    string
+	flagOffline  bool
+	flagConfig   string
+	flagDebug    bool
+	flagDebugLog string
+
+	// Global state — initialized once, then accessed via runCtx.
+	reg     *registry.Registry
+	limiter *ratelimit.Limiter
+	cache   *ratelimit.Cache
+	cfg     *config.Config
+)
+
+// RunContext encapsulates per-command state (flags + initialized globals)
+// so that command handlers do not reference package-level mutable variables
+// directly. This makes it safe to test commands concurrently and simplifies
+// future extraction of commands into separate packages.
+type RunContext struct {
+	JSON    bool
+	Plain   bool
+	Quiet   bool
+	NoColor bool
+	Limit   int
+	Debug   bool
+	Offline bool
+
+	Reg     *registry.Registry
+	Limiter *ratelimit.Limiter
+	Cache   *ratelimit.Cache
+	Cfg     *config.Config
+}
+
+// runCtx is the singleton RunContext built after flags are parsed.
+var runCtx *RunContext
+
+// getRunContext returns the current RunContext, building it from globals on
+// first access. Command handlers should call this instead of reading the
+// package-level flag* and global state variables directly.
+func getRunContext() *RunContext {
+	if runCtx != nil {
+		return runCtx
+	}
+	runCtx = &RunContext{
+		JSON:    flagJSON,
+		Plain:   flagPlain,
+		Quiet:   flagQuiet,
+		NoColor: flagNoColor,
+		Limit:   flagLimit,
+		Debug:   flagDebug,
+		Offline: flagOffline,
+		Reg:     reg,
+		Limiter: limiter,
+		Cache:   cache,
+		Cfg:     cfg,
+	}
+	return runCtx
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "wsp",
+	Short: "Wellspring — one CLI for any public data source",
+	Long: `Wellspring (wsp) is a unified CLI that turns public-apis into callable tools.
+
+One binary. One interface. Any public data source.
+
+Quick start:
+  wsp news top                          Hacker News top stories
+  wsp news top --source=reddit          Reddit hot posts
+  wsp weather forecast --lat=40.7 --lon=-74.0  Weather forecast
+  wsp crypto prices                     Cryptocurrency prices
+  wsp finance quote --symbol=AAPL       Stock quote (needs API key)
+  wsp government population --country=US  Population data
+  wsp sources                           List all known APIs
+  wsp sources --supported               List callable sources
+  wsp serve                             Start MCP server for agents
+
+Configuration:
+  Config file: ~/.config/wellspring/config.toml
+  Cache dir:   ~/.cache/wellspring/
+  Custom sources: ~/.config/wellspring/sources/*.yaml
+
+Environment variables:
+  WSP_ALPHA_VANTAGE_KEY   Alpha Vantage API key
+  WSP_CONFIG_DIR          Override config directory
+  WSP_CACHE_DIR           Override cache directory
+  NO_COLOR                Disable color output`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Initialize global state after flags are parsed so --cache, --offline,
+		// and --debug take effect during initialization.
+		initOnce.Do(initGlobals)
+		// Rebuild RunContext so command handlers see current flag values.
+		runCtx = nil
+		_ = getRunContext()
+		return nil
+	},
+	// RunE is explicitly set to show help when no subcommand is given.
+	// While Cobra shows help by default, explicit is preferred over implicit.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
+}
+
+func init() {
+	// Global flags.
+	rootCmd.PersistentFlags().BoolVar(&flagJSON, "json", false, "Structured JSON output")
+	rootCmd.PersistentFlags().BoolVar(&flagPlain, "plain", false, "Tab-separated plain text output")
+	rootCmd.PersistentFlags().BoolVarP(&flagQuiet, "quiet", "q", false, "Suppress all non-data output")
+	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "Disable color output")
+	rootCmd.PersistentFlags().IntVarP(&flagLimit, "limit", "n", 10, "Maximum number of results")
+	rootCmd.PersistentFlags().StringVar(&flagCache, "cache", "", "Cache duration override (e.g., 5m, 1h)")
+	rootCmd.PersistentFlags().BoolVar(&flagOffline, "offline", false, "Skip registry sync, use built-in/cached sources only")
+	rootCmd.PersistentFlags().StringVar(&flagConfig, "config", "", "Path to config file")
+	rootCmd.PersistentFlags().BoolVar(&flagDebug, "debug", false, "Show request/response details on stderr")
+	rootCmd.PersistentFlags().StringVar(&flagDebugLog, "debug-log", "", "Write debug output to file (implies --debug)")
+
+	rootCmd.Version = Version
+	rootCmd.SetVersionTemplate("wsp version {{.Version}}\n")
+
+	// Register all subcommands.
+	rootCmd.AddCommand(newsCmd)
+	rootCmd.AddCommand(weatherCmd)
+	rootCmd.AddCommand(cryptoCmd)
+	rootCmd.AddCommand(financeCmd)
+	rootCmd.AddCommand(governmentCmd)
+	rootCmd.AddCommand(sourcesCmd)
+	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(serveCmd)
+}
+
+var initOnce sync.Once
+
+// Execute runs the root command.
+func Execute() error {
+	err := rootCmd.Execute()
+	if err != nil {
+		// RunContext may not be initialized if the error occurred during
+		// flag parsing, so fall back to the raw flag variables.
+		if flagJSON {
+			output.RenderJSONError(os.Stdout, "", err)
+		} else if !flagQuiet {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+	}
+	return err
+}
+
+func initGlobals() {
+	// Load config.
+	cfg = config.DefaultConfig()
+
+	// Handle --debug-log: open file, tee debug output to both file and stderr.
+	if flagDebugLog != "" {
+		flagDebug = true
+		f, err := os.OpenFile(flagDebugLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not open debug log %s: %v\n", flagDebugLog, err)
+		} else {
+			// Replace stderr with a multi-writer so all fmt.Fprintf(os.Stderr, ...)
+			// calls (including [debug] lines) write to both destinations.
+			multiW := io.MultiWriter(os.Stderr, f)
+			// Create a pipe-backed file that writes to the multi-writer.
+			r, w, err := os.Pipe()
+			if err == nil {
+				os.Stderr = w
+				go func() {
+					buf := make([]byte, 4096)
+					for {
+						n, err := r.Read(buf)
+						if n > 0 {
+							multiW.Write(buf[:n])
+						}
+						if err != nil {
+							break
+						}
+					}
+				}()
+			}
+		}
+	}
+
+	// Check NO_COLOR env var.
+	if os.Getenv("NO_COLOR") != "" {
+		flagNoColor = true
+	}
+
+	// Initialize rate limiter.
+	limiter = ratelimit.NewLimiter()
+
+	// Initialize cache.
+	cacheTTL := cfg.General.CacheTTL
+	if flagCache != "" {
+		if d, err := time.ParseDuration(flagCache); err == nil {
+			cacheTTL = d
+		}
+	}
+	cache = ratelimit.NewCache(cacheTTL)
+
+	// Initialize registry.
+	reg = registry.NewRegistry()
+
+	// Load built-in declarative adapters.
+	loadBuiltInSources()
+
+	// Register coded adapters.
+	reg.Register(coded.NewRedditAdapter())
+	reg.Register(coded.NewAlphaVantageAdapter(cfg.GetAPIKey("ALPHA_VANTAGE")))
+
+	// Load catalog.
+	if err := reg.LoadCatalog(); err != nil && !flagQuiet {
+		fmt.Fprintf(os.Stderr, "warning: failed to load catalog: %v\n", err)
+	}
+
+	// Load user-defined sources (highest priority — may override built-in).
+	if err := reg.LoadUserSources(); err != nil && !flagQuiet {
+		fmt.Fprintf(os.Stderr, "warning: failed to load user sources: %v\n", err)
+	}
+
+	// Background sync if not offline.
+	if !flagOffline {
+		status := registry.LoadSyncStatus()
+		if status.NeedsBackgroundRefresh() {
+			registry.BackgroundSync(reg, flagDebug)
+		}
+	}
+}
+
+// loadBuiltInSources loads the declarative YAML adapters compiled into the binary.
+func loadBuiltInSources() {
+	sources := map[string][]byte{
+		"hackernews": hackernewsYAML,
+		"openmeteo":  openmeteoYAML,
+		"coingecko":  coingeckoYAML,
+		"worldbank":  worldbankYAML,
+	}
+
+	for name, data := range sources {
+		a, err := declarative.LoadFromBytes(data)
+		if err != nil {
+			if flagDebug {
+				fmt.Fprintf(os.Stderr, "[debug] failed to load built-in source %s: %v\n", name, err)
+			}
+			continue
+		}
+		reg.Register(a)
+	}
+}
+
+// getOutputFormat determines the output format based on flags and TTY detection.
+func getOutputFormat() output.Format {
+	rc := getRunContext()
+	if rc.JSON {
+		return output.FormatJSON
+	}
+	if rc.Plain {
+		return output.FormatPlain
+	}
+	return output.AutoDetectFormat()
+}
+
+// exitCode returns the appropriate exit code for an error.
+// Uses sentinel error types (errors.Is) for reliable classification,
+// with string-matching fallback for errors from external packages.
+func exitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	switch {
+	case errors.Is(err, adapter.ErrRateLimit):
+		return 3
+	case errors.Is(err, adapter.ErrAuthRequired):
+		return 2
+	case errors.Is(err, adapter.ErrInvalidInput):
+		return 4
+	default:
+		// Fallback: string matching for errors not yet migrated to sentinels.
+		errStr := strings.ToLower(err.Error())
+		switch {
+		case strings.Contains(errStr, "rate limit"):
+			return 3
+		case strings.Contains(errStr, "requires an api key"), strings.Contains(errStr, "auth"):
+			return 2
+		case strings.Contains(errStr, "invalid"), strings.Contains(errStr, "unknown action"):
+			return 4
+		default:
+			return 1
+		}
+	}
+}

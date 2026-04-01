@@ -1,0 +1,42 @@
+name: openmeteo
+category: weather
+description: "Open-Meteo — free weather forecasts, current conditions, historical data"
+auth: none
+base_url: https://api.open-meteo.com/v1
+
+endpoints:
+  forecast:
+    path: /forecast
+    method: GET
+    params:
+      # Default: New York City. Override via --latitude/--longitude or MCP params.
+      latitude: "40.7128"
+      longitude: "-74.0060"
+      current: "temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
+      daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code"
+      timezone: "auto"
+      forecast_days: "7"
+  current:
+    path: /forecast
+    method: GET
+    params:
+      # Default: New York City. Override via --latitude/--longitude or MCP params.
+      latitude: "40.7128"
+      longitude: "-74.0060"
+      current: "temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code"
+      timezone: "auto"
+
+mapping:
+  title: .current.temperature_2m
+  value: .current.temperature_2m
+  time: .current.time
+  meta:
+    humidity: .current.relative_humidity_2m
+    wind_speed: .current.wind_speed_10m
+    weather_code: .current.weather_code
+    latitude: .latitude
+    longitude: .longitude
+
+rate_limit:
+  requests: 60
+  per: 1m
